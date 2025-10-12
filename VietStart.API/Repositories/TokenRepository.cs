@@ -1,6 +1,9 @@
-﻿using Microsoft.IdentityModel.Tokens;
+﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
+using VietStart.API.Data;
 using VietStart.API.Entities.Domains;
 
 namespace VietStart.API.Repositories
@@ -8,9 +11,12 @@ namespace VietStart.API.Repositories
     public class TokenRepository : ITokenReposity
     {
         private readonly IConfiguration _configuration;
-        public TokenRepository(IConfiguration configuration)
+        private readonly AuthDbContext _context;
+
+        public TokenRepository(IConfiguration configuration, AuthDbContext context)
         {
             _configuration = configuration;
+            _context = context;
         }
 
         public async Task<string> CreateJWTToken(AppUser user, string role)
@@ -35,6 +41,46 @@ namespace VietStart.API.Repositories
                 signingCredentials: credentials);
 
             return new JwtSecurityTokenHandler().WriteToken(token);
+        }
+
+        public async Task<RefreshToken> GenerateRefreshTokenAsync(AppUser user)
+        {
+            var randomNumber = new byte[64];
+            using var rng = RandomNumberGenerator.Create();
+            rng.GetBytes(randomNumber);
+
+            return new RefreshToken
+            {
+                Id = Guid.NewGuid(),
+                Token = Convert.ToBase64String(randomNumber),
+                UserId = user.Id,
+                ExpiresAt = DateTime.UtcNow.AddDays(7),
+                CreatedAt = DateTime.UtcNow,
+                IsRevoked = false
+            };
+        }
+
+        public async Task SaveRefreshTokenAsync(RefreshToken refreshToken)
+        {
+            _context.RefreshTokens.Add(refreshToken);
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task<RefreshToken?> GetRefreshTokenAsync(string refreshToken)
+        {
+            return await _context.RefreshTokens
+                .Include(r => r.User)
+                .FirstOrDefaultAsync(r => r.Token == refreshToken);
+        }
+
+        public async Task RevokeRefreshTokenAsync(string refreshToken)
+        {
+            var token = await _context.RefreshTokens.FirstOrDefaultAsync(r => r.Token == refreshToken);
+            if (token != null)
+            {
+                token.IsRevoked = true;
+                await _context.SaveChangesAsync();
+            }
         }
     }
 }

@@ -1,7 +1,9 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using VietStart.API.Entities.Domains;
 using VietStart.API.Entities.DTO;
 using VietStart.API.Repositories;
@@ -14,13 +16,13 @@ namespace VietStart.API.Controllers
     {
         private readonly UserManager<AppUser> _userManager;
         private readonly RoleManager<IdentityRole> _roleManager;
-        private readonly ITokenReposity _token;
+        private readonly ITokenReposity _tokenRepository;
 
         public AuthController(UserManager<AppUser> userManager, RoleManager<IdentityRole> roleManager, ITokenReposity token)
         {
             _userManager = userManager;
             _roleManager = roleManager;
-            _token = token;
+            _tokenRepository = token;
         }
 
         [HttpPost]
@@ -68,10 +70,16 @@ namespace VietStart.API.Controllers
                 {
                     var role = (await _userManager.GetRolesAsync(user)).FirstOrDefault();
 
+                    var accessToken = await _tokenRepository.CreateJWTToken(user, role);
+
+                    var refreshToken = await _tokenRepository.GenerateRefreshTokenAsync(user);
+
+                    await _tokenRepository.SaveRefreshTokenAsync(refreshToken);
+
                     var OAuth2Token = new OAuth2Token
                     {
-                        access_token = await _token.CreateJWTToken(user, role),
-                        refresh_token = "temp",
+                        access_token = accessToken,
+                        refresh_token = refreshToken.Token,
                         token_type = "Bearer",
                         expires_in = 3600,
                         scope = role
@@ -82,6 +90,50 @@ namespace VietStart.API.Controllers
             }
 
             return BadRequest(new { Message = "Invalid email or password." });
+        }
+
+        [HttpPost]
+        [Route("Refresh")]
+        public async Task<IActionResult> Refresh([FromBody] RefreshRequestDto request)
+        {
+            var oldToken = await _tokenRepository.GetRefreshTokenAsync(request.Token);
+
+            if (oldToken == null || oldToken.ExpiresAt <= DateTime.UtcNow || oldToken.IsRevoked == true)
+                return Unauthorized("Refresh token không hợp lệ hoặc đã hết hạn.");
+
+            // Sinh token mới
+            var user = oldToken.User;
+            var roles = await _userManager.GetRolesAsync(user);
+            var role = roles.FirstOrDefault() ?? "Client";
+
+            var accessToken = await _tokenRepository.CreateJWTToken(user, role);
+
+            // Thu hồi token cũ
+            await _tokenRepository.RevokeRefreshTokenAsync(request.Token);
+
+            var refreshToken = await _tokenRepository.GenerateRefreshTokenAsync(user);
+
+            await _tokenRepository.SaveRefreshTokenAsync(refreshToken);
+
+
+            var OAuth2Token = new OAuth2Token
+            {
+                access_token = accessToken,
+                refresh_token = refreshToken.Token,
+                token_type = "Bearer",
+                expires_in = 3600,
+                scope = role
+            };
+
+            return Ok(OAuth2Token);
+        }
+
+        [HttpPost]
+        [Route("Logout")]
+        public async Task<IActionResult> Logout([FromBody] RefreshRequest request)
+        {
+            await _tokenRepository.RevokeRefreshTokenAsync(request.RefreshToken);
+            return Ok(new { Message = "Đăng xuất thành công." });
         }
 
         [Authorize(Roles = "Client")]
