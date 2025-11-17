@@ -11,9 +11,9 @@ namespace VietStart.API.Repositories
     public class TokenRepository : ITokenReposity
     {
         private readonly IConfiguration _configuration;
-        private readonly AuthDbContext _context;
+        private readonly AppDbContext _context;
 
-        public TokenRepository(IConfiguration configuration, AuthDbContext context)
+        public TokenRepository(IConfiguration configuration, AppDbContext context)
         {
             _configuration = configuration;
             _context = context;

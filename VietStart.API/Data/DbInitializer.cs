@@ -8,7 +8,7 @@ namespace VietStart.API.Data
     public static class DbInitializer
     {
         public static async Task InitializeAsync(
-            AuthDbContext context,
+            AppDbContext context,
             UserManager<AppUser> userManager,
             RoleManager<IdentityRole> roleManager)
         {

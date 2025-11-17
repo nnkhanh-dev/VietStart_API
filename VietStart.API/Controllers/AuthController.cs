@@ -136,13 +136,5 @@ namespace VietStart.API.Controllers
             return Ok(new { Message = "Đăng xuất thành công." });
         }
 
-        [Authorize(Roles = "Client")]
-        [HttpGet]
-        [Route("Test")]
-        public async Task<IActionResult> Test()
-        {
-            return Ok();
-        }
-
     }
 }

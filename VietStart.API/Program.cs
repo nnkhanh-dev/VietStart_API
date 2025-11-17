@@ -19,10 +19,6 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-builder.Services.AddDbContext<AuthDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("AuthConnection")));
-
-
 builder.Services.AddScoped<ITokenReposity, TokenRepository>();
 
 builder.Services.AddAuthentication(options =>
@@ -49,7 +45,7 @@ builder.Services.AddDataProtection();
 builder.Services.AddIdentityCore<AppUser>()
     .AddRoles<IdentityRole>() 
     .AddTokenProvider<DataProtectorTokenProvider<AppUser>>("VietStart")
-    .AddEntityFrameworkStores<AuthDbContext>()
+    .AddEntityFrameworkStores<AppDbContext>()
     .AddDefaultTokenProviders();
 
 builder.Services.Configure<IdentityOptions>(options =>
@@ -68,7 +64,7 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
-    var context = services.GetRequiredService<AuthDbContext>();
+    var context = services.GetRequiredService<AppDbContext>();
     var userManager = services.GetRequiredService<UserManager<AppUser>>();
     var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
 
