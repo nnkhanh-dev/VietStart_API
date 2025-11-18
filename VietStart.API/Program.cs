@@ -30,6 +30,9 @@ builder.Services.AddScoped<IAppUserRepository, AppUserRepository>();
 
 builder.Services.AddScoped<ITokenReposity, TokenRepository>();
 
+// Add AutoMapper
+builder.Services.AddAutoMapper(typeof(Program).Assembly);
+
 // Add CORS
 builder.Services.AddCors(options =>
 {

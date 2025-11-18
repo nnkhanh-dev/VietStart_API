@@ -1,3 +1,4 @@
+﻿using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -12,19 +13,22 @@ namespace VietStart.API.Controllers
     public class CommentsController : ControllerBase
     {
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IMapper _mapper;
 
-        public CommentsController(IUnitOfWork unitOfWork)
+        public CommentsController(IUnitOfWork unitOfWork, IMapper mapper)
         {
             _unitOfWork = unitOfWork;
+            _mapper = mapper;
         }
 
         // GET: api/comments/startup/{startupId}
         [HttpGet("startup/{startupId}")]
+        [Authorize(Roles = "Client")]
         public async Task<ActionResult<IEnumerable<CommentDto>>> GetCommentsByStartup(int startupId)
         {
             var startup = await _unitOfWork.StartUps.FirstOrDefaultAsync(s => s.Id == startupId && s.DeletedAt == null);
             if (startup == null)
-                return NotFound(new { Message = "Startup kh�ng t?n t?i" });
+                return NotFound(new { Message = "Startup không tồn tại" });
 
             var comments = await _unitOfWork.Comments.GetCommentsByStartupAsync(startupId);
 
@@ -58,12 +62,13 @@ namespace VietStart.API.Controllers
 
         // GET: api/comments/{id}
         [HttpGet("{id}")]
+        [Authorize(Roles = "Client")]
         public async Task<ActionResult<CommentDto>> GetComment(int id)
         {
             var comment = await _unitOfWork.Comments.GetCommentWithRepliesAsync(id);
 
             if (comment == null)
-                return NotFound(new { Message = "B�nh lu?n kh�ng t?n t?i" });
+                return NotFound(new { Message = "Bình luận không tồn tại" });
 
             var commentDto = new CommentDto
             {
@@ -82,7 +87,7 @@ namespace VietStart.API.Controllers
         }
 
         // POST: api/comments
-        [Authorize]
+        [Authorize(Roles = "Admin,Client")]
         [HttpPost]
         public async Task<ActionResult<CommentDto>> CreateComment([FromBody] CreateCommentDto createDto)
         {
@@ -93,24 +98,19 @@ namespace VietStart.API.Controllers
 
             var startup = await _unitOfWork.StartUps.FirstOrDefaultAsync(s => s.Id == createDto.StartUpId && s.DeletedAt == null);
             if (startup == null)
-                return BadRequest(new { Message = "Startup kh�ng t?n t?i" });
+                return BadRequest(new { Message = "Startup không tồn tại" });
 
             if (createDto.ParentCommentId.HasValue)
             {
                 var parentComment = await _unitOfWork.Comments.FirstOrDefaultAsync(c => c.Id == createDto.ParentCommentId.Value && c.DeletedAt == null);
                 if (parentComment == null)
-                    return BadRequest(new { Message = "B�nh lu?n cha kh�ng t?n t?i" });
+                    return BadRequest(new { Message = "Bình luận cha không tồn tại" });
             }
 
-            var comment = new Comment
-            {
-                UserId = userId,
-                StartUpId = createDto.StartUpId,
-                Content = createDto.Content,
-                ParentCommentId = createDto.ParentCommentId,
-                CreatedAt = DateTime.UtcNow,
-                CreatedBy = userId
-            };
+            var comment = _mapper.Map<Comment>(createDto);
+            comment.UserId = userId;
+            comment.CreatedAt = DateTime.UtcNow;
+            comment.CreatedBy = userId;
 
             await _unitOfWork.Comments.AddAsync(comment);
 
@@ -133,7 +133,7 @@ namespace VietStart.API.Controllers
         }
 
         // PUT: api/comments/{id}
-        [Authorize]
+        [Authorize(Roles = "Admin,Client")]
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateComment(int id, [FromBody] UpdateCommentDto updateDto)
         {
@@ -144,22 +144,22 @@ namespace VietStart.API.Controllers
             var comment = await _unitOfWork.Comments.FirstOrDefaultAsync(c => c.Id == id && c.DeletedAt == null);
 
             if (comment == null)
-                return NotFound(new { Message = "B�nh lu?n kh�ng t?n t?i" });
+                return NotFound(new { Message = "Bình luận không tồn tại" });
 
             if (comment.UserId != userId)
                 return Forbid();
 
-            comment.Content = updateDto.Content;
+            _mapper.Map(updateDto, comment);
             comment.UpdatedAt = DateTime.UtcNow;
             comment.UpdatedBy = userId;
 
             await _unitOfWork.Comments.UpdateAsync(comment);
 
-            return Ok(new { Message = "C?p nh?t b�nh lu?n th�nh c�ng" });
+            return Ok(new { Message = "Cập nhật bình luận thành công" });
         }
 
         // DELETE: api/comments/{id}
-        [Authorize]
+        [Authorize(Roles = "Admin,Client")]
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteComment(int id)
         {
@@ -167,7 +167,7 @@ namespace VietStart.API.Controllers
             var comment = await _unitOfWork.Comments.FirstOrDefaultAsync(c => c.Id == id && c.DeletedAt == null);
 
             if (comment == null)
-                return NotFound(new { Message = "B�nh lu?n kh�ng t?n t?i" });
+                return NotFound(new { Message = "Bình luận không tồn tại" });
 
             if (comment.UserId != userId)
                 return Forbid();
@@ -177,7 +177,7 @@ namespace VietStart.API.Controllers
 
             await _unitOfWork.Comments.UpdateAsync(comment);
 
-            return Ok(new { Message = "X�a b�nh lu?n th�nh c�ng" });
+            return Ok(new { Message = "Xóa bình luận thành công" });
         }
     }
 }

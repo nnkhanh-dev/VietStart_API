@@ -1,3 +1,4 @@
+﻿using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -12,10 +13,12 @@ namespace VietStart.API.Controllers
     public class StartupsController : ControllerBase
     {
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IMapper _mapper;
 
-        public StartupsController(IUnitOfWork unitOfWork)
+        public StartupsController(IUnitOfWork unitOfWork, IMapper mapper)
         {
             _unitOfWork = unitOfWork;
+            _mapper = mapper;
         }
 
         // GET: api/startups
@@ -34,7 +37,7 @@ namespace VietStart.API.Controllers
                 Team = s.Team,
                 Idea = s.Idea,
                 Prototype = s.Prototype,
-                Traction = s.Traction,
+                Plan = s.Plan,
                 Relationship = s.Relationship,
                 Privacy = s.Privacy,
                 Point = s.Point,
@@ -49,14 +52,31 @@ namespace VietStart.API.Controllers
             return Ok(new { Data = startupDtos, Total = total });
         }
 
-        // GET: api/startups/{id}
-        [HttpGet("{id}")]
-        public async Task<ActionResult<StartUpDto>> GetStartup(int id)
+        // GET: api/startups/{id}/details
+        [HttpGet("{id}/details")]
+        public async Task<ActionResult<StartUpDetailDto>> GetStartupDetails(int id)
         {
             var startup = await _unitOfWork.StartUps.GetStartUpWithDetailsAsync(id);
 
             if (startup == null)
-                return NotFound(new { Message = "Startup kh�ng t?n t?i" });
+                return NotFound(new { Message = "Startup không tồn tại" });
+
+            var startupDetailDto = _mapper.Map<StartUpDetailDto>(startup);
+
+            return Ok(startupDetailDto);
+        }
+
+        // GET: api/startups/{id}
+        [HttpGet("{id}")]
+        public async Task<ActionResult<StartUpDto>> GetStartup(int id)
+        {
+            var startup = await _unitOfWork.StartUps.FirstOrDefaultAsync(s => s.Id == id && s.DeletedAt == null);
+
+            if (startup == null)
+                return NotFound(new { Message = "Startup không tồn tại" });
+
+            var category = await _unitOfWork.Categories.FirstOrDefaultAsync(c => c.Id == startup.CategoryId && c.DeletedAt == null);
+            var user = await _unitOfWork.Users.FirstOrDefaultAsync(u => u.Id == startup.UserId);
 
             var startupDto = new StartUpDto
             {
@@ -64,14 +84,14 @@ namespace VietStart.API.Controllers
                 Team = startup.Team,
                 Idea = startup.Idea,
                 Prototype = startup.Prototype,
-                Traction = startup.Traction,
+                Plan = startup.Plan,
                 Relationship = startup.Relationship,
                 Privacy = startup.Privacy,
                 Point = startup.Point,
                 UserId = startup.UserId,
-                UserFullName = startup.AppUser.FullName,
+                UserFullName = user?.FullName,
                 CategoryId = startup.CategoryId,
-                CategoryName = startup.Category.Name,
+                CategoryName = category?.Name,
                 CreatedAt = startup.CreatedAt,
                 UpdatedAt = startup.UpdatedAt
             };
@@ -80,7 +100,7 @@ namespace VietStart.API.Controllers
         }
 
         // POST: api/startups
-        [Authorize]
+        [Authorize(Roles = "Admin,Client")]
         [HttpPost]
         public async Task<ActionResult<StartUpDto>> CreateStartup([FromBody] CreateStartUpDto createDto)
         {
@@ -91,22 +111,12 @@ namespace VietStart.API.Controllers
             
             var category = await _unitOfWork.Categories.FirstOrDefaultAsync(c => c.Id == createDto.CategoryId && c.DeletedAt == null);
             if (category == null)
-                return BadRequest(new { Message = "Danh m?c kh�ng t?n t?i" });
+                return BadRequest(new { Message = "Danh mục không tồn tại" });
 
-            var startup = new StartUp
-            {
-                Team = createDto.Team,
-                Idea = createDto.Idea,
-                Prototype = createDto.Prototype,
-                Traction = createDto.Traction,
-                Relationship = createDto.Relationship,
-                Privacy = createDto.Privacy,
-                Point = 0,
-                UserId = userId,
-                CategoryId = createDto.CategoryId,
-                CreatedAt = DateTime.UtcNow,
-                CreatedBy = userId
-            };
+            var startup = _mapper.Map<StartUp>(createDto);
+            startup.UserId = userId;
+            startup.CreatedAt = DateTime.UtcNow;
+            startup.CreatedBy = userId;
 
             await _unitOfWork.StartUps.AddAsync(startup);
 
@@ -118,7 +128,7 @@ namespace VietStart.API.Controllers
                 Team = startup.Team,
                 Idea = startup.Idea,
                 Prototype = startup.Prototype,
-                Traction = startup.Traction,
+                Plan = startup.Plan,
                 Relationship = startup.Relationship,
                 Privacy = startup.Privacy,
                 Point = startup.Point,
@@ -134,7 +144,7 @@ namespace VietStart.API.Controllers
         }
 
         // PUT: api/startups/{id}
-        [Authorize]
+        [Authorize(Roles = "Admin,Client")]
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateStartup(int id, [FromBody] UpdateStartUpDto updateDto)
         {
@@ -145,32 +155,26 @@ namespace VietStart.API.Controllers
             var startup = await _unitOfWork.StartUps.FirstOrDefaultAsync(s => s.Id == id && s.DeletedAt == null);
 
             if (startup == null)
-                return NotFound(new { Message = "Startup kh�ng t?n t?i" });
+                return NotFound(new { Message = "Startup không tồn tại" });
 
             if (startup.UserId != userId)
                 return Forbid();
 
             var category = await _unitOfWork.Categories.FirstOrDefaultAsync(c => c.Id == updateDto.CategoryId && c.DeletedAt == null);
             if (category == null)
-                return BadRequest(new { Message = "Danh m?c kh�ng t?n t?i" });
+                return BadRequest(new { Message = "Danh mục không tồn tại" });
 
-            startup.Team = updateDto.Team;
-            startup.Idea = updateDto.Idea;
-            startup.Prototype = updateDto.Prototype;
-            startup.Traction = updateDto.Traction;
-            startup.Relationship = updateDto.Relationship;
-            startup.Privacy = updateDto.Privacy;
-            startup.CategoryId = updateDto.CategoryId;
+            _mapper.Map(updateDto, startup);
             startup.UpdatedAt = DateTime.UtcNow;
             startup.UpdatedBy = userId;
 
             await _unitOfWork.StartUps.UpdateAsync(startup);
 
-            return Ok(new { Message = "C?p nh?t startup th�nh c�ng" });
+            return Ok(new { Message = "Cập nhật startup thành công" });
         }
 
         // DELETE: api/startups/{id}
-        [Authorize]
+        [Authorize(Roles = "Admin,Client")]
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteStartup(int id)
         {
@@ -178,7 +182,7 @@ namespace VietStart.API.Controllers
             var startup = await _unitOfWork.StartUps.FirstOrDefaultAsync(s => s.Id == id && s.DeletedAt == null);
 
             if (startup == null)
-                return NotFound(new { Message = "Startup kh�ng t?n t?i" });
+                return NotFound(new { Message = "Startup không tồn tại" });
 
             if (startup.UserId != userId)
                 return Forbid();
@@ -188,7 +192,7 @@ namespace VietStart.API.Controllers
 
             await _unitOfWork.StartUps.UpdateAsync(startup);
 
-            return Ok(new { Message = "X�a startup th�nh c�ng" });
+            return Ok(new { Message = "Xóa startup thành công" });
         }
 
         // GET: api/startups/user/{userId}
@@ -203,7 +207,7 @@ namespace VietStart.API.Controllers
                 Team = s.Team,
                 Idea = s.Idea,
                 Prototype = s.Prototype,
-                Traction = s.Traction,
+                Plan = s.Plan,
                 Relationship = s.Relationship,
                 Privacy = s.Privacy,
                 Point = s.Point,

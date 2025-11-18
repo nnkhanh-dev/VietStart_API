@@ -1,3 +1,4 @@
+﻿using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -12,19 +13,22 @@ namespace VietStart.API.Controllers
     public class ReactsController : ControllerBase
     {
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IMapper _mapper;
 
-        public ReactsController(IUnitOfWork unitOfWork)
+        public ReactsController(IUnitOfWork unitOfWork, IMapper mapper)
         {
             _unitOfWork = unitOfWork;
+            _mapper = mapper;
         }
 
         // GET: api/reacts/startup/{startupId}
         [HttpGet("startup/{startupId}")]
+        [Authorize(Roles = "Admin,Client")]
         public async Task<ActionResult<IEnumerable<ReactDto>>> GetReactsByStartup(int startupId)
         {
             var startup = await _unitOfWork.StartUps.FirstOrDefaultAsync(s => s.Id == startupId && s.DeletedAt == null);
             if (startup == null)
-                return NotFound(new { Message = "Startup kh�ng t?n t?i" });
+                return NotFound(new { Message = "Startup không tồn tại" });
 
             var reacts = await _unitOfWork.Reacts.GetReactsByStartupAsync(startupId);
 
@@ -43,11 +47,12 @@ namespace VietStart.API.Controllers
 
         // GET: api/reacts/comment/{commentId}
         [HttpGet("comment/{commentId}")]
+        [Authorize(Roles = "Admin,Client")]
         public async Task<ActionResult<IEnumerable<ReactDto>>> GetReactsByComment(int commentId)
         {
             var comment = await _unitOfWork.Comments.FirstOrDefaultAsync(c => c.Id == commentId && c.DeletedAt == null);
             if (comment == null)
-                return NotFound(new { Message = "B�nh lu?n kh�ng t?n t?i" });
+                return NotFound(new { Message = "Bình luận không tồn tại" });
 
             var reacts = await _unitOfWork.Reacts.GetReactsByCommentAsync(commentId);
 
@@ -66,28 +71,22 @@ namespace VietStart.API.Controllers
 
         // GET: api/reacts/{id}
         [HttpGet("{id}")]
+        [Authorize(Roles = "Admin,Client")]
         public async Task<ActionResult<ReactDto>> GetReact(int id)
         {
             var react = await _unitOfWork.Reacts.GetByIdAsync(id);
 
             if (react == null)
-                return NotFound(new { Message = "Ph?n ?ng kh�ng t?n t?i" });
+                return NotFound(new { Message = "Phản ứng không tồn tại" });
 
-            var reactDto = new ReactDto
-            {
-                Id = react.Id,
-                UserId = react.UserId,
-                UserFullName = react.User?.FullName,
-                StartUpId = react.StartUpId,
-                CommentId = react.CommentId,
-                Type = react.Type
-            };
+            var reactDto = _mapper.Map<ReactDto>(react);
+            reactDto.UserFullName = react.User?.FullName;
 
             return Ok(reactDto);
         }
 
         // POST: api/reacts
-        [Authorize]
+        [Authorize(Roles = "Admin,Client")]
         [HttpPost]
         public async Task<ActionResult<ReactDto>> CreateReact([FromBody] CreateReactDto createDto)
         {
@@ -95,7 +94,7 @@ namespace VietStart.API.Controllers
                 return BadRequest(ModelState);
 
             if (!createDto.CommentId.HasValue && !createDto.StartUpId.HasValue)
-                return BadRequest(new { Message = "Ph?i ch? ??nh CommentId ho?c StartUpId" });
+                return BadRequest(new { Message = "Phải chỉ định CommentId hoặc StartUpId" });
 
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
@@ -103,51 +102,39 @@ namespace VietStart.API.Controllers
             {
                 var startup = await _unitOfWork.StartUps.FirstOrDefaultAsync(s => s.Id == createDto.StartUpId.Value && s.DeletedAt == null);
                 if (startup == null)
-                    return BadRequest(new { Message = "Startup kh�ng t?n t?i" });
+                    return BadRequest(new { Message = "Startup không tồn tại" });
 
                 var existingReact = await _unitOfWork.Reacts.GetUserReactOnStartupAsync(userId, createDto.StartUpId.Value);
                 if (existingReact != null)
-                    return BadRequest(new { Message = "B?n ?� react b�i n�y r?i" });
+                    return BadRequest(new { Message = "Bạn đã react bài này rồi" });
             }
 
             if (createDto.CommentId.HasValue)
             {
                 var comment = await _unitOfWork.Comments.FirstOrDefaultAsync(c => c.Id == createDto.CommentId.Value && c.DeletedAt == null);
                 if (comment == null)
-                    return BadRequest(new { Message = "B�nh lu?n kh�ng t?n t?i" });
+                    return BadRequest(new { Message = "Bình luận không tồn tại" });
 
                 var existingReact = await _unitOfWork.Reacts.GetUserReactOnCommentAsync(userId, createDto.CommentId.Value);
                 if (existingReact != null)
-                    return BadRequest(new { Message = "B?n ?� react b�nh lu?n n�y r?i" });
+                    return BadRequest(new { Message = "Bạn đã react bình luận này rồi" });
             }
 
-            var react = new React
-            {
-                UserId = userId,
-                CommentId = createDto.CommentId,
-                StartUpId = createDto.StartUpId,
-                Type = createDto.Type
-            };
+            var react = _mapper.Map<React>(createDto);
+            react.UserId = userId;
 
             await _unitOfWork.Reacts.AddAsync(react);
 
             var user = await _unitOfWork.Users.GetByIdAsync(userId);
 
-            var reactDto = new ReactDto
-            {
-                Id = react.Id,
-                UserId = react.UserId,
-                UserFullName = user?.FullName,
-                StartUpId = react.StartUpId,
-                CommentId = react.CommentId,
-                Type = react.Type
-            };
+            var reactDto = _mapper.Map<ReactDto>(react);
+            reactDto.UserFullName = user?.FullName;
 
             return CreatedAtAction(nameof(GetReact), new { id = react.Id }, reactDto);
         }
 
         // PUT: api/reacts/{id}
-        [Authorize]
+        [Authorize(Roles = "Admin,Client")]
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateReact(int id, [FromBody] UpdateReactDto updateDto)
         {
@@ -158,20 +145,20 @@ namespace VietStart.API.Controllers
             var react = await _unitOfWork.Reacts.FirstOrDefaultAsync(r => r.Id == id);
 
             if (react == null)
-                return NotFound(new { Message = "Ph?n ?ng kh�ng t?n t?i" });
+                return NotFound(new { Message = "Phản ứng không tồn tại" });
 
             if (react.UserId != userId)
                 return Forbid();
 
-            react.Type = updateDto.Type;
+            _mapper.Map(updateDto, react);
 
             await _unitOfWork.Reacts.UpdateAsync(react);
 
-            return Ok(new { Message = "C?p nh?t ph?n ?ng th�nh c�ng" });
+            return Ok(new { Message = "Cập nhật phản ứng thành công" });
         }
 
         // DELETE: api/reacts/{id}
-        [Authorize]
+        [Authorize(Roles = "Admin,Client")]
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteReact(int id)
         {
@@ -179,14 +166,14 @@ namespace VietStart.API.Controllers
             var react = await _unitOfWork.Reacts.FirstOrDefaultAsync(r => r.Id == id);
 
             if (react == null)
-                return NotFound(new { Message = "Ph?n ?ng kh�ng t?n t?i" });
+                return NotFound(new { Message = "Phản ứng không tồn tại" });
 
             if (react.UserId != userId)
                 return Forbid();
 
             await _unitOfWork.Reacts.DeleteAsync(react);
 
-            return Ok(new { Message = "X�a ph?n ?ng th�nh c�ng" });
+            return Ok(new { Message = "Xóa phản ứng thành công" });
         }
     }
 }

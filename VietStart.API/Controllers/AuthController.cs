@@ -26,6 +26,7 @@ namespace VietStart.API.Controllers
         }
 
         [HttpPost]
+        [Authorize(Roles = "Admin,Client")]
         [Route("Register")]
         public async Task<IActionResult> Register([FromBody] RegisterRequestDto requestDto)
         {
