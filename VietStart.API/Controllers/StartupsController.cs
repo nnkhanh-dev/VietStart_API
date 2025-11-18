@@ -23,6 +23,7 @@ namespace VietStart.API.Controllers
 
         // GET: api/startups
         [HttpGet]
+        [Authorize(Roles = "Admin,Client")]
         public async Task<ActionResult<IEnumerable<StartUpDto>>> GetStartups([FromQuery] int? categoryId = null, [FromQuery] int page = 1, [FromQuery] int pageSize = 10)
         {
             var (startups, total) = await _unitOfWork.StartUps.GetPaginatedAsync(
@@ -54,6 +55,7 @@ namespace VietStart.API.Controllers
 
         // GET: api/startups/{id}/details
         [HttpGet("{id}/details")]
+        [Authorize(Roles = "Admin,Client")]
         public async Task<ActionResult<StartUpDetailDto>> GetStartupDetails(int id)
         {
             var startup = await _unitOfWork.StartUps.GetStartUpWithDetailsAsync(id);
@@ -68,6 +70,7 @@ namespace VietStart.API.Controllers
 
         // GET: api/startups/{id}
         [HttpGet("{id}")]
+        [Authorize(Roles = "Admin,Client")]
         public async Task<ActionResult<StartUpDto>> GetStartup(int id)
         {
             var startup = await _unitOfWork.StartUps.FirstOrDefaultAsync(s => s.Id == id && s.DeletedAt == null);
