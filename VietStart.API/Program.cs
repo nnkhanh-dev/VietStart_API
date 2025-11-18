@@ -19,7 +19,27 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
+builder.Services.AddScoped<IStartUpRepository, StartUpRepository>();
+builder.Services.AddScoped<ICommentRepository, CommentRepository>();
+builder.Services.AddScoped<IReactRepository, ReactRepository>();
+builder.Services.AddScoped<IShareRepository, ShareRepository>();
+builder.Services.AddScoped<IStartUpMediaRepository, StartUpMediaRepository>();
+builder.Services.AddScoped<IAppUserRepository, AppUserRepository>();
+
 builder.Services.AddScoped<ITokenReposity, TokenRepository>();
+
+// Add CORS
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAllOrigins", builder =>
+    {
+        builder.AllowAnyOrigin()
+               .AllowAnyMethod()
+               .AllowAnyHeader();
+    });
+});
 
 builder.Services.AddAuthentication(options =>
 {
@@ -79,6 +99,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseCors("AllowAllOrigins");
 
 app.UseAuthentication();
 app.UseAuthorization();
