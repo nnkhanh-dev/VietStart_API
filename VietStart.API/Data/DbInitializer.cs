@@ -36,7 +36,8 @@ namespace VietStart.API.Data
                 {
                     UserName = adminEmail,
                     Email = adminEmail,
-                    FullName = "Administrator"
+                    FullName = "Administrator",
+                    Location = "Đà Nẵng"
                 };
 
                 var result = await userManager.CreateAsync(newAdmin, "Admin@12345");
