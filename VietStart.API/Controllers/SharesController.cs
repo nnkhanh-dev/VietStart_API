@@ -1,3 +1,4 @@
+﻿using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -12,60 +13,48 @@ namespace VietStart.API.Controllers
     public class SharesController : ControllerBase
     {
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IMapper _mapper;
 
-        public SharesController(IUnitOfWork unitOfWork)
+        public SharesController(IUnitOfWork unitOfWork, IMapper mapper)
         {
             _unitOfWork = unitOfWork;
+            _mapper = mapper;
         }
 
         // GET: api/shares/startup/{startupId}
         [HttpGet("startup/{startupId}")]
+        [Authorize(Roles = "Client")]
         public async Task<ActionResult<IEnumerable<ShareDto>>> GetSharesByStartup(int startupId)
         {
             var startup = await _unitOfWork.StartUps.FirstOrDefaultAsync(s => s.Id == startupId && s.DeletedAt == null);
             if (startup == null)
-                return NotFound(new { Message = "Startup kh�ng t?n t?i" });
+                return NotFound(new { Message = "Startup không tồn tại" });
 
             var shares = await _unitOfWork.Shares.GetSharesByStartupAsync(startupId);
 
-            var shareDtos = shares.Select(s => new ShareDto
-            {
-                UserId = s.UserId,
-                UserFullName = s.User.FullName,
-                StartUpId = s.StartUpId,
-                Content = s.Content,
-                CreatedAt = s.CreatedAt,
-                UpdatedAt = s.UpdatedAt
-            }).ToList();
+            var shareDtos = _mapper.Map<IEnumerable<ShareDto>>(shares);
 
             return Ok(shareDtos);
         }
 
         // GET: api/shares/user/{userId}
         [HttpGet("user/{userId}")]
+        [Authorize(Roles = "Client")]
         public async Task<ActionResult<IEnumerable<ShareDto>>> GetSharesByUser(string userId)
         {
             var user = await _unitOfWork.Users.FirstOrDefaultAsync(u => u.Id == userId && u.DeletedAt == null);
             if (user == null)
-                return NotFound(new { Message = "Ng??i d�ng kh�ng t?n t?i" });
+                return NotFound(new { Message = "Người dùng không tồn tại" });
 
             var shares = await _unitOfWork.Shares.GetSharesByUserAsync(userId);
 
-            var shareDtos = shares.Select(s => new ShareDto
-            {
-                UserId = s.UserId,
-                UserFullName = s.User.FullName,
-                StartUpId = s.StartUpId,
-                Content = s.Content,
-                CreatedAt = s.CreatedAt,
-                UpdatedAt = s.UpdatedAt
-            }).ToList();
+            var shareDtos = _mapper.Map<IEnumerable<ShareDto>>(shares);
 
             return Ok(shareDtos);
         }
 
         // POST: api/shares
-        [Authorize]
+        [Authorize(Roles = "Admin,Client")]
         [HttpPost]
         public async Task<ActionResult<ShareDto>> CreateShare([FromBody] CreateShareDto createDto)
         {
@@ -76,40 +65,29 @@ namespace VietStart.API.Controllers
 
             var startup = await _unitOfWork.StartUps.FirstOrDefaultAsync(s => s.Id == createDto.StartUpId && s.DeletedAt == null);
             if (startup == null)
-                return BadRequest(new { Message = "Startup kh�ng t?n t?i" });
+                return BadRequest(new { Message = "Startup không tồn tại" });
 
             var existingShare = await _unitOfWork.Shares.GetShareAsync(userId, createDto.StartUpId);
             if (existingShare != null)
-                return BadRequest(new { Message = "B?n ?� share startup n�y r?i" });
+                return BadRequest(new { Message = "Bạn đã share startup này rồi" });
 
-            var share = new Share
-            {
-                UserId = userId,
-                StartUpId = createDto.StartUpId,
-                Content = createDto.Content,
-                CreatedAt = DateTime.UtcNow,
-                CreatedBy = userId
-            };
+            var share = _mapper.Map<Share>(createDto);
+            share.UserId = userId;
+            share.CreatedAt = DateTime.UtcNow;
+            share.CreatedBy = userId;
 
             await _unitOfWork.Shares.AddAsync(share);
 
             var user = await _unitOfWork.Users.GetByIdAsync(userId);
 
-            var shareDto = new ShareDto
-            {
-                UserId = share.UserId,
-                UserFullName = user?.FullName,
-                StartUpId = share.StartUpId,
-                Content = share.Content,
-                CreatedAt = share.CreatedAt,
-                UpdatedAt = share.UpdatedAt
-            };
+            var shareDto = _mapper.Map<ShareDto>(share);
+            shareDto.UserFullName = user?.FullName;
 
             return CreatedAtAction(nameof(GetSharesByStartup), new { startupId = share.StartUpId }, shareDto);
         }
 
         // PUT: api/shares/{userId}/{startupId}
-        [Authorize]
+        [Authorize(Roles = "Admin,Client")]
         [HttpPut("{userId}/{startupId}")]
         public async Task<IActionResult> UpdateShare(string userId, int startupId, [FromBody] UpdateShareDto updateDto)
         {
@@ -120,22 +98,22 @@ namespace VietStart.API.Controllers
             var share = await _unitOfWork.Shares.GetShareAsync(userId, startupId);
 
             if (share == null)
-                return NotFound(new { Message = "Chia s? kh�ng t?n t?i" });
+                return NotFound(new { Message = "Chia sẻ không tồn tại" });
 
             if (share.UserId != currentUserId)
                 return Forbid();
 
-            share.Content = updateDto.Content;
+            _mapper.Map(updateDto, share);
             share.UpdatedAt = DateTime.UtcNow;
             share.UpdatedBy = currentUserId;
 
             await _unitOfWork.Shares.UpdateAsync(share);
 
-            return Ok(new { Message = "C?p nh?t chia s? th�nh c�ng" });
+            return Ok(new { Message = "Cập nhật chia sẻ thành công" });
         }
 
         // DELETE: api/shares/{userId}/{startupId}
-        [Authorize]
+        [Authorize(Roles = "Admin,Client")]
         [HttpDelete("{userId}/{startupId}")]
         public async Task<IActionResult> DeleteShare(string userId, int startupId)
         {
@@ -143,7 +121,7 @@ namespace VietStart.API.Controllers
             var share = await _unitOfWork.Shares.GetShareAsync(userId, startupId);
 
             if (share == null)
-                return NotFound(new { Message = "Chia s? kh�ng t?n t?i" });
+                return NotFound(new { Message = "Chia sẻ không tồn tại" });
 
             if (share.UserId != currentUserId)
                 return Forbid();
@@ -153,7 +131,7 @@ namespace VietStart.API.Controllers
 
             await _unitOfWork.Shares.UpdateAsync(share);
 
-            return Ok(new { Message = "X�a chia s? th�nh c�ng" });
+            return Ok(new { Message = "Xóa chia sẻ thành công" });
         }
     }
 }

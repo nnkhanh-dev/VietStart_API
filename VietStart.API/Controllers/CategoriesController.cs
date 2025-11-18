@@ -1,3 +1,4 @@
+﻿using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -12,83 +13,62 @@ namespace VietStart.API.Controllers
     public class CategoriesController : ControllerBase
     {
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IMapper _mapper;
 
-        public CategoriesController(IUnitOfWork unitOfWork)
+        public CategoriesController(IUnitOfWork unitOfWork, IMapper mapper)
         {
             _unitOfWork = unitOfWork;
+            _mapper = mapper;
         }
 
         // GET: api/categories
         [HttpGet]
+        [Authorize(Roles = "Admin,Client")]
         public async Task<ActionResult<IEnumerable<CategoryDto>>> GetCategories()
         {
             var categories = await _unitOfWork.Categories.GetAllAsync(c => c.DeletedAt == null);
             
-            var categoryDtos = categories.Select(c => new CategoryDto
-            {
-                Id = c.Id,
-                Name = c.Name,
-                Description = c.Description,
-                CreatedAt = c.CreatedAt,
-                UpdatedAt = c.UpdatedAt
-            }).ToList();
+            var categoryDtos = _mapper.Map<IEnumerable<CategoryDto>>(categories);
 
             return Ok(categoryDtos);
         }
 
         // GET: api/categories/{id}
         [HttpGet("{id}")]
+        [Authorize(Roles = "Admin,Client")]
         public async Task<ActionResult<CategoryDto>> GetCategory(int id)
         {
             var category = await _unitOfWork.Categories.FirstOrDefaultAsync(c => c.Id == id && c.DeletedAt == null);
 
             if (category == null)
-                return NotFound(new { Message = "Danh m?c kh�ng t?n t?i" });
+                return NotFound(new { Message = "Danh mục không tồn tại" });
 
-            var categoryDto = new CategoryDto
-            {
-                Id = category.Id,
-                Name = category.Name,
-                Description = category.Description,
-                CreatedAt = category.CreatedAt,
-                UpdatedAt = category.UpdatedAt
-            };
+            var categoryDto = _mapper.Map<CategoryDto>(category);
 
             return Ok(categoryDto);
         }
 
         // POST: api/categories
-        [Authorize]
+        [Authorize(Roles = "Admin")]
         [HttpPost]
         public async Task<ActionResult<CategoryDto>> CreateCategory([FromBody] CreateCategoryDto createDto)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            var category = new Category
-            {
-                Name = createDto.Name,
-                Description = createDto.Description,
-                CreatedAt = DateTime.UtcNow,
-                CreatedBy = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
-            };
+            var category = _mapper.Map<Category>(createDto);
+            category.CreatedAt = DateTime.UtcNow;
+            category.CreatedBy = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
             await _unitOfWork.Categories.AddAsync(category);
 
-            var categoryDto = new CategoryDto
-            {
-                Id = category.Id,
-                Name = category.Name,
-                Description = category.Description,
-                CreatedAt = category.CreatedAt,
-                UpdatedAt = category.UpdatedAt
-            };
+            var categoryDto = _mapper.Map<CategoryDto>(category);
 
             return CreatedAtAction(nameof(GetCategory), new { id = category.Id }, categoryDto);
         }
 
         // PUT: api/categories/{id}
-        [Authorize]
+        [Authorize(Roles = "Admin")]
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateCategory(int id, [FromBody] UpdateCategoryDto updateDto)
         {
@@ -98,34 +78,33 @@ namespace VietStart.API.Controllers
             var category = await _unitOfWork.Categories.FirstOrDefaultAsync(c => c.Id == id && c.DeletedAt == null);
 
             if (category == null)
-                return NotFound(new { Message = "Danh m?c kh�ng t?n t?i" });
+                return NotFound(new { Message = "Danh mục không tồn tại" });
 
-            category.Name = updateDto.Name;
-            category.Description = updateDto.Description;
+            _mapper.Map(updateDto, category);
             category.UpdatedAt = DateTime.UtcNow;
             category.UpdatedBy = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
             await _unitOfWork.Categories.UpdateAsync(category);
 
-            return Ok(new { Message = "C?p nh?t danh m?c th�nh c�ng" });
+            return Ok(new { Message = "Cập nhật danh mục thành công" });
         }
 
         // DELETE: api/categories/{id}
-        [Authorize]
+        [Authorize(Roles = "Admin")]
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteCategory(int id)
         {
             var category = await _unitOfWork.Categories.FirstOrDefaultAsync(c => c.Id == id && c.DeletedAt == null);
 
             if (category == null)
-                return NotFound(new { Message = "Danh m?c kh�ng t?n t?i" });
+                return NotFound(new { Message = "Danh mục không tồn tại" });
 
             category.DeletedAt = DateTime.UtcNow;
             category.DeletedBy = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
             await _unitOfWork.Categories.UpdateAsync(category);
 
-            return Ok(new { Message = "X�a danh m?c th�nh c�ng" });
+            return Ok(new { Message = "Xóa danh mục thành công" });
         }
     }
 }

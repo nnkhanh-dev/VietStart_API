@@ -11,7 +11,7 @@ namespace VietStart.API.Entities.Domains
         public string Team { get; set; }
         public string Idea { get; set; }
         public string Prototype { get; set; }
-        public string Traction { get; set; }
+        public string Plan { get; set; }
         public string Relationship { get; set; }
         public Privacy Privacy { get; set; }
         public int Point { get; set; }

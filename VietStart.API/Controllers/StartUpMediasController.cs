@@ -1,3 +1,4 @@
+Ôªøusing AutoMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -11,55 +12,47 @@ namespace VietStart.API.Controllers
     public class StartUpMediasController : ControllerBase
     {
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IMapper _mapper;
 
-        public StartUpMediasController(IUnitOfWork unitOfWork)
+        public StartUpMediasController(IUnitOfWork unitOfWork, IMapper mapper)
         {
             _unitOfWork = unitOfWork;
+            _mapper = mapper;
         }
 
-        // GET: api/startupmÈdias/startup/{startupId}
+        // GET: api/startupm√©dias/startup/{startupId}
         [HttpGet("startup/{startupId}")]
+        [Authorize(Roles = "Admin,Client")]
         public async Task<ActionResult<IEnumerable<StartUpMediaDto>>> GetMediasByStartup(int startupId)
         {
             var startup = await _unitOfWork.StartUps.FirstOrDefaultAsync(s => s.Id == startupId && s.DeletedAt == null);
             if (startup == null)
-                return NotFound(new { Message = "Startup khÙng t?n t?i" });
+                return NotFound(new { Message = "Startup kh√¥ng t·ªìn t·∫°i" });
 
             var medias = await _unitOfWork.StartUpMedias.GetMediasByStartupAsync(startupId);
 
-            var mediaDtos = medias.Select(m => new StartUpMediaDto
-            {
-                Id = m.Id,
-                Path = m.Path,
-                Type = m.Type,
-                StartUpId = m.StartUpId
-            }).ToList();
+            var mediaDtos = _mapper.Map<IEnumerable<StartUpMediaDto>>(medias);
 
             return Ok(mediaDtos);
         }
 
-        // GET: api/startupmÈdias/{id}
+        // GET: api/startupm√©dias/{id}
         [HttpGet("{id}")]
+        [Authorize(Roles = "Admin,Client")]
         public async Task<ActionResult<StartUpMediaDto>> GetMedia(int id)
         {
             var media = await _unitOfWork.StartUpMedias.GetByIdAsync(id);
 
             if (media == null)
-                return NotFound(new { Message = "Media khÙng t?n t?i" });
+                return NotFound(new { Message = "Media kh√¥ng t·ªìn t·∫°i" });
 
-            var mediaDto = new StartUpMediaDto
-            {
-                Id = media.Id,
-                Path = media.Path,
-                Type = media.Type,
-                StartUpId = media.StartUpId
-            };
+            var mediaDto = _mapper.Map<StartUpMediaDto>(media);
 
             return Ok(mediaDto);
         }
 
-        // POST: api/startupmÈdias
-        [Authorize]
+        // POST: api/startupm√©dias
+        [Authorize(Roles = "Admin,Client")]
         [HttpPost]
         public async Task<ActionResult<StartUpMediaDto>> CreateMedia([FromBody] CreateStartUpMediaDto createDto)
         {
@@ -70,33 +63,22 @@ namespace VietStart.API.Controllers
 
             var startup = await _unitOfWork.StartUps.FirstOrDefaultAsync(s => s.Id == createDto.StartUpId && s.DeletedAt == null);
             if (startup == null)
-                return BadRequest(new { Message = "Startup khÙng t?n t?i" });
+                return BadRequest(new { Message = "Startup kh√¥ng t·ªìn t·∫°i" });
 
             if (startup.UserId != userId)
                 return Forbid();
 
-            var media = new VietStart.API.Entities.Domains.StartUpMedia
-            {
-                Path = createDto.Path,
-                Type = createDto.Type,
-                StartUpId = createDto.StartUpId
-            };
+            var media = _mapper.Map<VietStart.API.Entities.Domains.StartUpMedia>(createDto);
 
             await _unitOfWork.StartUpMedias.AddAsync(media);
 
-            var mediaDto = new StartUpMediaDto
-            {
-                Id = media.Id,
-                Path = media.Path,
-                Type = media.Type,
-                StartUpId = media.StartUpId
-            };
+            var mediaDto = _mapper.Map<StartUpMediaDto>(media);
 
             return CreatedAtAction(nameof(GetMedia), new { id = media.Id }, mediaDto);
         }
 
-        // PUT: api/startupmÈdias/{id}
-        [Authorize]
+        // PUT: api/startupm√©dias/{id}
+        [Authorize(Roles = "Admin,Client")]
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateMedia(int id, [FromBody] UpdateStartUpMediaDto updateDto)
         {
@@ -107,22 +89,21 @@ namespace VietStart.API.Controllers
             var media = await _unitOfWork.StartUpMedias.GetByIdAsync(id);
 
             if (media == null)
-                return NotFound(new { Message = "Media khÙng t?n t?i" });
+                return NotFound(new { Message = "Media kh√¥ng t·ªìn t·∫°i" });
 
             var startup = await _unitOfWork.StartUps.FirstOrDefaultAsync(s => s.Id == media.StartUpId);
             if (startup.UserId != userId)
                 return Forbid();
 
-            media.Path = updateDto.Path;
-            media.Type = updateDto.Type;
+            _mapper.Map(updateDto, media);
 
             await _unitOfWork.StartUpMedias.UpdateAsync(media);
 
-            return Ok(new { Message = "C?p nh?t media th‡nh cÙng" });
+            return Ok(new { Message = "C·∫≠p nh·∫≠t media th√†nh c√¥ng" });
         }
 
-        // DELETE: api/startupmÈdias/{id}
-        [Authorize]
+        // DELETE: api/startupm√©dias/{id}
+        [Authorize(Roles = "Admin,Client")]
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteMedia(int id)
         {
@@ -130,7 +111,7 @@ namespace VietStart.API.Controllers
             var media = await _unitOfWork.StartUpMedias.GetByIdAsync(id);
 
             if (media == null)
-                return NotFound(new { Message = "Media khÙng t?n t?i" });
+                return NotFound(new { Message = "Media kh√¥ng t·ªìn t·∫°i" });
 
             var startup = await _unitOfWork.StartUps.FirstOrDefaultAsync(s => s.Id == media.StartUpId);
             if (startup.UserId != userId)
@@ -138,7 +119,7 @@ namespace VietStart.API.Controllers
 
             await _unitOfWork.StartUpMedias.DeleteAsync(media);
 
-            return Ok(new { Message = "XÛa media th‡nh cÙng" });
+            return Ok(new { Message = "X√≥a media th√†nh c√¥ng" });
         }
     }
 }

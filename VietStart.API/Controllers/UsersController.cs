@@ -1,3 +1,4 @@
+﻿using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -14,11 +15,13 @@ namespace VietStart.API.Controllers
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly UserManager<AppUser> _userManager;
+        private readonly IMapper _mapper;
 
-        public UsersController(IUnitOfWork unitOfWork, UserManager<AppUser> userManager)
+        public UsersController(IUnitOfWork unitOfWork, UserManager<AppUser> userManager, IMapper mapper)
         {
             _unitOfWork = unitOfWork;
             _userManager = userManager;
+            _mapper = mapper;
         }
 
         // GET: api/users/{id}
@@ -28,20 +31,9 @@ namespace VietStart.API.Controllers
             var user = await _unitOfWork.Users.FirstOrDefaultAsync(u => u.Id == id && u.DeletedAt == null);
 
             if (user == null)
-                return NotFound(new { Message = "Ng??i d�ng kh�ng t?n t?i" });
+                return NotFound(new { Message = "Người dùng không tồn tại" });
 
-            var userDto = new AppUserDto
-            {
-                Id = user.Id,
-                FullName = user.FullName,
-                Location = user.Location,
-                Bio = user.Bio,
-                Avatar = user.Avatar,
-                DOB = user.DOB,
-                Email = user.Email,
-                CreatedAt = user.CreatedAt,
-                UpdatedAt = user.UpdatedAt
-            };
+            var userDto = _mapper.Map<AppUserDto>(user);
 
             return Ok(userDto);
         }
@@ -56,24 +48,13 @@ namespace VietStart.API.Controllers
                 u => u.DeletedAt == null,
                 q => q.OrderBy(u => u.CreatedAt));
 
-            var userDtos = users.Select(u => new AppUserDto
-            {
-                Id = u.Id,
-                FullName = u.FullName,
-                Location = u.Location,
-                Bio = u.Bio,
-                Avatar = u.Avatar,
-                DOB = u.DOB,
-                Email = u.Email,
-                CreatedAt = u.CreatedAt,
-                UpdatedAt = u.UpdatedAt
-            }).ToList();
+            var userDtos = _mapper.Map<IEnumerable<AppUserDto>>(users);
 
             return Ok(new { Data = userDtos, Total = total });
         }
 
         // PUT: api/users/{id}
-        [Authorize]
+        [Authorize(Roles = "Admin,Client")]
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateUser(string id, [FromBody] UpdateAppUserDto updateDto)
         {
@@ -88,7 +69,7 @@ namespace VietStart.API.Controllers
             var user = await _unitOfWork.Users.FirstOrDefaultAsync(u => u.Id == id && u.DeletedAt == null);
 
             if (user == null)
-                return NotFound(new { Message = "Ng??i d�ng kh�ng t?n t?i" });
+                return NotFound(new { Message = "Người dùng không tồn tại" });
 
             user.FullName = updateDto.FullName ?? user.FullName;
             user.Location = updateDto.Location ?? user.Location;
@@ -103,7 +84,7 @@ namespace VietStart.API.Controllers
             if (!result.Succeeded)
                 return BadRequest(result.Errors);
 
-            return Ok(new { Message = "C?p nh?t th�ng tin ng??i d�ng th�nh c�ng" });
+            return Ok(new { Message = "Cập nhật thông tin người dùng thành công" });
         }
 
         // GET: api/users/{id}/startups
@@ -112,7 +93,7 @@ namespace VietStart.API.Controllers
         {
             var user = await _unitOfWork.Users.FirstOrDefaultAsync(u => u.Id == id && u.DeletedAt == null);
             if (user == null)
-                return NotFound(new { Message = "Ng??i d�ng kh�ng t?n t?i" });
+                return NotFound(new { Message = "Người dùng không tồn tại" });
 
             var startups = await _unitOfWork.StartUps.GetUserStartupsAsync(id);
 
@@ -122,7 +103,7 @@ namespace VietStart.API.Controllers
                 Team = s.Team,
                 Idea = s.Idea,
                 Prototype = s.Prototype,
-                Traction = s.Traction,
+                Plan = s.Plan,
                 Relationship = s.Relationship,
                 Privacy = s.Privacy,
                 Point = s.Point,
@@ -142,22 +123,11 @@ namespace VietStart.API.Controllers
         public async Task<ActionResult<IEnumerable<AppUserDto>>> SearchUsers(string keyword)
         {
             if (string.IsNullOrWhiteSpace(keyword))
-                return BadRequest(new { Message = "T? kh�a t�m ki?m kh�ng ???c tr?ng" });
+                return BadRequest(new { Message = "Từ khóa tìm kiếm không được trống" });
 
             var users = await _unitOfWork.Users.SearchUsersAsync(keyword);
 
-            var userDtos = users.Select(u => new AppUserDto
-            {
-                Id = u.Id,
-                FullName = u.FullName,
-                Location = u.Location,
-                Bio = u.Bio,
-                Avatar = u.Avatar,
-                DOB = u.DOB,
-                Email = u.Email,
-                CreatedAt = u.CreatedAt,
-                UpdatedAt = u.UpdatedAt
-            }).ToList();
+            var userDtos = _mapper.Map<IEnumerable<AppUserDto>>(users);
 
             return Ok(userDtos);
         }
@@ -169,7 +139,7 @@ namespace VietStart.API.Controllers
             var user = await _unitOfWork.Users.FirstOrDefaultAsync(u => u.Id == id && u.DeletedAt == null);
 
             if (user == null)
-                return NotFound(new { Message = "Ng??i d�ng kh�ng t?n t?i" });
+                return NotFound(new { Message = "Người dùng không tồn tại" });
 
             var startupsCount = await _unitOfWork.StartUps.CountAsync(s => s.UserId == id && s.DeletedAt == null);
             var commentsCount = await _unitOfWork.Comments.CountAsync(c => c.UserId == id && c.DeletedAt == null);
@@ -177,18 +147,7 @@ namespace VietStart.API.Controllers
 
             return Ok(new
             {
-                User = new AppUserDto
-                {
-                    Id = user.Id,
-                    FullName = user.FullName,
-                    Location = user.Location,
-                    Bio = user.Bio,
-                    Avatar = user.Avatar,
-                    DOB = user.DOB,
-                    Email = user.Email,
-                    CreatedAt = user.CreatedAt,
-                    UpdatedAt = user.UpdatedAt
-                },
+                User = _mapper.Map<AppUserDto>(user),
                 Statistics = new
                 {
                     StartupsCount = startupsCount,
@@ -199,7 +158,7 @@ namespace VietStart.API.Controllers
         }
 
         // DELETE: api/users/{id}
-        [Authorize]
+        [Authorize(Roles = "Admin,Client")]
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteUser(string id)
         {
@@ -211,14 +170,14 @@ namespace VietStart.API.Controllers
             var user = await _unitOfWork.Users.FirstOrDefaultAsync(u => u.Id == id && u.DeletedAt == null);
 
             if (user == null)
-                return NotFound(new { Message = "Ng??i d�ng kh�ng t?n t?i" });
+                return NotFound(new { Message = "Người dùng không tồn tại" });
 
             user.DeletedAt = DateTime.UtcNow;
             user.DeletedBy = currentUserId;
 
             await _unitOfWork.Users.UpdateAsync(user);
 
-            return Ok(new { Message = "X�a t�i kho?n th�nh c�ng" });
+            return Ok(new { Message = "Xóa tài khoản thành công" });
         }
     }
 }
