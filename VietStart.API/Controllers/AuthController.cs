@@ -33,7 +33,8 @@ namespace VietStart.API.Controllers
             {
                 UserName = requestDto.Email,
                 Email = requestDto.Email,
-                FullName = requestDto.FullName
+                FullName = requestDto.FullName,
+                CreatedAt = DateTime.UtcNow
             };
 
             var result = await _userManager.CreateAsync(user, requestDto.Password);
@@ -130,9 +131,9 @@ namespace VietStart.API.Controllers
 
         [HttpPost]
         [Route("Logout")]
-        public async Task<IActionResult> Logout([FromBody] RefreshRequest request)
+        public async Task<IActionResult> Logout([FromBody] RefreshRequestDto request)
         {
-            await _tokenRepository.RevokeRefreshTokenAsync(request.RefreshToken);
+            await _tokenRepository.RevokeRefreshTokenAsync(request.Token);
             return Ok(new { Message = "Đăng xuất thành công." });
         }
 
