@@ -122,6 +122,107 @@ namespace VietStart.API.Controllers
             });
         }
 
-  
+        [HttpPost("point")]
+        public async Task<IActionResult> Point([FromBody] StartupInfo info)
+        {
+            if (info == null)
+                return BadRequest("Startup info cannot be null.");
+
+            string apiKey = _configuration["Gemini:Key"];
+            var url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={apiKey}";
+
+            // Prompt yêu cầu chấm điểm theo từng tiêu chí
+            string prompt = $@"
+            Bạn là chuyên gia đầu tư startup early-stage.
+            Hãy chấm điểm startup theo các yếu tố sau (tổng 100 điểm):
+
+            1. Team (20 điểm): 
+               - Năng lực chuyên môn / kỹ thuật 15
+               - Kỹ năng đa ngành / đa lĩnh vực 10
+               - Đầu tư tâm huyết (fulltime/part-time) 10
+
+            2. Ý tưởng (20 điểm):
+               - Ý tưởng mới / đột phá 10
+               - Khả thi 5
+               - Quy mô thị trường tiềm năng 5
+
+            3. Prototype / MVP (30 điểm):
+               - Có MVP hoặc prototype 10
+               - MVP thể hiện chức năng cốt lõi 10
+               - Chạy được demo 10
+
+            4. Kế hoạch triển khai / bán hàng (10 điểm):
+               - Có người dùng thử 5
+               - Có kế hoạch 6 tháng / 1 năm / 3 năm / 5 năm 5
+
+            5. Quan hệ chiến lược (20 điểm):
+               - Nằm trong mũi nhọn lĩnh vực được đầu tư 5
+               - Hợp tác với cơ sở / doanh nghiệp 5
+
+            ⚠️ BẮT BUỘC:
+            - Chỉ trả về JSON với cấu trúc:
+            {{
+                ""Team"": int,
+                ""Idea"": int,
+                ""Prototype"": int,
+                ""Plan"": int,
+                ""Relationships"": int,
+                ""TotalScore"": int
+            }}
+            - Không giải thích thêm.
+
+            Thông tin startup: 
+            Team: ""{info.Team}""
+            Idea: ""{info.Idea}""
+            Prototype: ""{info.Prototype}""
+            Plan: ""{info.Plan}""
+            Relationships: ""{info.Relationships}""
+            ";
+
+            var requestBody = new
+            {
+                contents = new[]
+                {
+            new { parts = new[] { new { text = prompt } } }
+        }
+            };
+
+            var content = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
+
+            // Gửi request
+            var response = await _httpClient.PostAsync(url, content);
+            if (!response.IsSuccessStatusCode)
+                return StatusCode((int)(response?.StatusCode ?? System.Net.HttpStatusCode.InternalServerError),
+                    await response.Content.ReadAsStringAsync());
+
+            var jsonResponse = await response.Content.ReadAsStringAsync();
+            using var doc = JsonDocument.Parse(jsonResponse);
+
+            if (!doc.RootElement.TryGetProperty("candidates", out var candidates))
+                return BadRequest("Gemini: No candidates returned.");
+
+            string resultText = candidates[0]
+                .GetProperty("content")
+                .GetProperty("parts")[0]
+                .GetProperty("text")
+                .GetString() ?? "";
+
+            // Loại bỏ markdown nếu có ```json```
+            string cleanedJson = resultText.Replace("```json", "").Replace("```", "").Trim();
+
+            // Deserialize JSON thành object điểm
+            var score = new Dictionary<string, int>();
+            try
+            {
+                score = JsonSerializer.Deserialize<Dictionary<string, int>>(cleanedJson) ?? new Dictionary<string, int>();
+            }
+            catch
+            {
+                return BadRequest("Gemini returned invalid JSON for scoring.");
+            }
+
+            return Ok(score);
+        }
+
     }
 }
