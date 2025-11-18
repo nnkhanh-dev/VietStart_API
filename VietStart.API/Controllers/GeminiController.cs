@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System.Net;
@@ -8,7 +8,6 @@ using VietStart.API.Entities.DTO;
 
 namespace VietStart.API.Controllers
 {
-
     [Route("api/[controller]")]
     [ApiController]
     public class GeminiController : ControllerBase
@@ -32,33 +31,34 @@ namespace VietStart.API.Controllers
             string apiKey = _configuration["Gemini:Key"];
             var url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={apiKey}";
 
-            string prompt = $@"
-                Bạn là hệ thống chuẩn hóa dữ liệu Startup.
-                Hãy phân tích mô tả của người dùng và xuất ra JSON gồm đúng 5 phần:
+            string prompt = @"
+B?n l� h? th?ng chu?n h�a th�ng tin Startup Vi?t Nam. Ph�n t�ch m� t? c?a ng??i d�ng v� tr�ch xu?t th�nh JSON c� ?�ng 5 tr??ng:
 
-                - Team: đội ngũ của startup
-                - Idea: ý tưởng cốt lõi
-                - Prototype: các sản phẩm đã làm được hoặc link demo nếu có
-                - Plan: kế hoạch phát triển tương lai
-                - Relationships: các mối quan hệ, đối tác, nhà đầu tư
+?? TR??NG TH�NG TIN:
+- Team: Th�nh ph?n ??i s�ng l?p (t�n, vai tr�, kinh nghi?m)
+- Idea: � t??ng c?t l�i (m� t? ng?n, problem-solution)
+- Prototype: MVP/s?n ph?m (tr?ng th�i ph�t tri?n, URL demo n?u c�)
+- Plan: K? ho?ch ph�t tri?n (giai ?o?n, timeline, m?c ti�u)
+- Relationships: Quan h? chi?n l??c (??i t�c, nh� ??u t?, advisor)
 
-                ⚠️ BẮT BUỘC:
-                - Chỉ trả về JSON.
-                - Không kèm giải thích.
-                - Không thêm trường khác.
-                - Nếu không có thông tin, trả về chuỗi rỗng """" cho mục đó.
+?? QUY T?C B?T BU?C:
+? Ch? tr? v? JSON h?p l?
+? Kh�ng gi?i th�ch, kh�ng Markdown
+? Gi? nguy�n � ch�nh t? input
+? N?u thi?u th�ng tin: ?? chu?i r?ng
+? Vi?t ti?ng Vi?t, clear v� chuy�n nghi?p
 
-                Cấu trúc JSON:
-                {{
-                    ""Team"": ""..."",
-                    ""Idea"": ""..."",
-                    ""Prototype"": ""..."",
-                    ""Plan"": ""..."",
-                    ""Relationships"": ""...""
-                }}
+JSON OUTPUT:
+{
+    ""Team"": ""..."",
+    ""Idea"": ""..."",
+    ""Prototype"": ""..."",
+    ""Plan"": ""..."",
+    ""Relationships"": ""...""
+}
 
-                Input: ""{clientAnswer}""
-             ";
+INPUT: " + clientAnswer + @"
+";
 
             var requestBody = new
             {
@@ -72,7 +72,7 @@ namespace VietStart.API.Controllers
 
             var content = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
 
-            // --- Retry khi gặp 503 ---
+            // --- Retry khi g?p 503 ---
             int maxRetries = 3;
             int delayMs = 2000;
             HttpResponseMessage? response = null;
@@ -104,7 +104,7 @@ namespace VietStart.API.Controllers
                 .GetProperty("text")
                 .GetString() ?? "";
 
-            // Loại bỏ markdown nếu có và deserialize
+            // Lo?i b? markdown n?u c� v� deserialize
             string cleanedJson = resultText.Replace("```json", "").Replace("```", "").Trim();
 
             StartupInfo formatted;
@@ -134,65 +134,70 @@ namespace VietStart.API.Controllers
             string apiKey = _configuration["Gemini:Key"];
             var url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={apiKey}";
 
-            // Prompt yêu cầu chấm điểm theo từng tiêu chí
-            string prompt = $@"
-            Bạn là chuyên gia đầu tư startup early-stage.
-            Hãy chấm điểm startup theo các yếu tố sau (tổng 100 điểm):
+            string prompt = @"
+B?n l� chuy�n gia ??u t? startup early-stage t?i Vi?t Nam.
+Ch?m ?i?m startup d?a tr�n ti�u ch� sau (t?ng 100 ?i?m):
 
-            1. Team (20 điểm): 
-               - Năng lực chuyên môn / kỹ thuật 15
-               - Kỹ năng đa ngành / đa lĩnh vực 10
-               - Đầu tư tâm huyết (fulltime/part-time) 10
+?? TI�U CH� ?�NH GI�:
 
-            2. Ý tưởng (20 điểm):
-               - Ý tưởng mới / đột phá 10
-               - Khả thi 5
-               - Quy mô thị trường tiềm năng 5
+1?? TEAM (20 ?i?m):
+   � N?ng l?c chuy�n m�n/k? thu?t: 8 ?i?m
+   � Kinh nghi?m ?a l?nh v?c: 6 ?i?m
+   � Cam k?t (FT/PT/Advisor): 6 ?i?m
 
-            3. Prototype / MVP (30 điểm):
-               - Có MVP hoặc prototype 10
-               - MVP thể hiện chức năng cốt lõi 10
-               - Chạy được demo 10
+2?? IDEA (20 ?i?m):
+   � T�nh m?i/??t ph�: 8 ?i?m
+   � T�nh kh? thi: 6 ?i?m
+   � Quy m� th? tr??ng: 6 ?i?m
 
-            4. Kế hoạch triển khai / bán hàng (10 điểm):
-               - Có người dùng thử 5
-               - Có kế hoạch 6 tháng / 1 năm / 3 năm / 5 năm 5
+3?? PROTOTYPE/MVP (30 ?i?m):
+   � C� MVP/prototype: 10 ?i?m
+   � T�nh n?ng c?t l�i ho?t ??ng: 10 ?i?m
+   � Demo ch?y ???c: 10 ?i?m
 
-            5. Quan hệ chiến lược (20 điểm):
-               - Nằm trong mũi nhọn lĩnh vực được đầu tư 5
-               - Hợp tác với cơ sở / doanh nghiệp 5
+4?? K? HO?CH (15 ?i?m):
+   � C� ng??i d�ng th?: 7 ?i?m
+   � Timeline r� r�ng (6M-1Y-3Y): 8 ?i?m
 
-            ⚠️ BẮT BUỘC:
-            - Chỉ trả về JSON với cấu trúc:
-            {{
-                ""Team"": int,
-                ""Idea"": int,
-                ""Prototype"": int,
-                ""Plan"": int,
-                ""Relationships"": int,
-                ""TotalScore"": int
-            }}
-            - Không giải thích thêm.
+5?? QUAN H? CHI?N L??C (15 ?i?m):
+   � H?p t�c B2B/Ecosystem: 8 ?i?m
+   � Nh� ??u t?/Advisor: 7 ?i?m
 
-            Thông tin startup: 
-            Team: ""{info.Team}""
-            Idea: ""{info.Idea}""
-            Prototype: ""{info.Prototype}""
-            Plan: ""{info.Plan}""
-            Relationships: ""{info.Relationships}""
-            ";
+?? TH�NG TIN STARTUP:
+Team: " + info.Team + @"
+Idea: " + info.Idea + @"
+Prototype: " + info.Prototype + @"
+Plan: " + info.Plan + @"
+Relationships: " + info.Relationships + @"
+
+?? QUY T?C:
+? Ch? tr? JSON, kh�ng gi?i th�ch
+? ?i?m ph?i l� s? nguy�n (0-20, 0-30...)
+? TotalScore = sum(Team+Idea+Prototype+Plan+Relationships)
+? N?u thi?u info: ?i?m 0 cho m?c ?�
+
+JSON OUTPUT:
+{
+    ""Team"": 0-20,
+    ""Idea"": 0-20,
+    ""Prototype"": 0-30,
+    ""Plan"": 0-15,
+    ""Relationships"": 0-15,
+    ""TotalScore"": 0-100
+}
+";
 
             var requestBody = new
             {
                 contents = new[]
                 {
-            new { parts = new[] { new { text = prompt } } }
-        }
+                    new { parts = new[] { new { text = prompt } } }
+                }
             };
 
             var content = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
 
-            // Gửi request
+            // G?i request
             var response = await _httpClient.PostAsync(url, content);
             if (!response.IsSuccessStatusCode)
                 return StatusCode((int)(response?.StatusCode ?? System.Net.HttpStatusCode.InternalServerError),
@@ -210,10 +215,10 @@ namespace VietStart.API.Controllers
                 .GetProperty("text")
                 .GetString() ?? "";
 
-            // Loại bỏ markdown nếu có ```json```
+            // Lo?i b? markdown n?u c� ```json```
             string cleanedJson = resultText.Replace("```json", "").Replace("```", "").Trim();
 
-            // Deserialize JSON thành object điểm
+            // Deserialize JSON th�nh object ?i?m
             var score = new Dictionary<string, int>();
             try
             {
@@ -237,34 +242,40 @@ namespace VietStart.API.Controllers
             string apiKey = _configuration["Gemini:Key"];
             var url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={apiKey}";
 
-            string prompt = $@"
-            Bạn là cố vấn chiến lược cho startup early-stage.
-            Dựa trên thông tin startup được cung cấp, hãy đưa ra gợi ý cải thiện từng phần.
-            Trả lại thông tin startup được cải thiện, chi tiết hơn và chuyên nghiệp hơn.
+            string prompt = @"
+B?n l� c? v?n startup k? c?u, chuy�n s?a & vi?t l?i profile startup ?? ph?c v? pitch nh� ??u t?.
 
-            ⚠️ BẮT BUỘC:
-            - Chỉ trả về JSON với đúng 5 trường: Team, Idea, Prototype, Plan, Relationships
-            - Cải thiện từng phần dựa trên input
-            - Giữ nguyên ý chính nhưng viết chi tiết, rõ ràng và chuyên nghiệp hơn
-            - Không thêm trường khác
-            - Nếu phần nào quá sơ sài, hãy gợi ý cách cải thiện
+?? NHI?M V?:
+Vi?t l?i th�ng tin startup d??i ?�y ??:
+  ? Chuy�n nghi?p, r� r�ng, thuy?t ph?c h?n
+  ? C� s? li?u c? th? (n?u c�)
+  ? Gi? nguy�n th?c ch?t, th�m context
+  ? Ph� h?p v?i nh� ??u t? Vi?t Nam & qu?c t?
+  ? Tr�nh t? qu� generic, th�m USP (Unique Selling Point)
 
-            Thông tin startup hiện tại:
-            Team: ""{info.Team}""
-            Idea: ""{info.Idea}""
-            Prototype: ""{info.Prototype}""
-            Plan: ""{info.Plan}""
-            Relationships: ""{info.Relationships}""
+?? TH�NG TIN HI?N T?I:
+Team: " + info.Team + @"
+Idea: " + info.Idea + @"
+Prototype: " + info.Prototype + @"
+Plan: " + info.Plan + @"
+Relationships: " + info.Relationships + @"
 
-            Cấu trúc JSON trả về:
-            {{
-                ""Team"": ""...(đã cải thiện)"",
-                ""Idea"": ""...(đã cải thiện)"",
-                ""Prototype"": ""...(đã cải thiện)"",
-                ""Plan"": ""...(đã cải thiện)"",
-                ""Relationships"": ""...(đã cải thiện)""
-            }}
-            ";
+?? QUY T?C:
+? Ch? tr? JSON, kh�ng markdown, kh�ng gi?i th�ch
+? 5 tr??ng: Team, Idea, Prototype, Plan, Relationships
+? N?u input r?ng: output c?ng r?ng
+? Gi? length h?p l� (200-300 k� t?/tr??ng)
+? Ti?ng Vi?t, chuy�n ng�nh
+
+JSON OUTPUT:
+{
+    ""Team"": ""...(?� c?i thi?n)"",
+    ""Idea"": ""...(?� c?i thi?n)"",
+    ""Prototype"": ""...(?� c?i thi?n)"",
+    ""Plan"": ""...(?� c?i thi?n)"",
+    ""Relationships"": ""...(?� c?i thi?n)""
+}
+";
 
             var requestBody = new
             {
@@ -276,7 +287,7 @@ namespace VietStart.API.Controllers
 
             var content = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
 
-            // Retry khi gặp 503
+            // Retry khi g?p 503
             int maxRetries = 3;
             int delayMs = 2000;
             HttpResponseMessage? response = null;
@@ -337,33 +348,66 @@ namespace VietStart.API.Controllers
             string apiKey = _configuration["Gemini:Key"];
             var url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={apiKey}";
 
-            string prompt = $@"
-            Bạn là cố vấn chiến lược kỳ cựu cho startup.
-            Dựa trên thông tin startup được cung cấp, hãy đưa ra gợi ý cụ thể để startup phát triển mạnh mẽ hơn.
+            string prompt = @"
+B?n l� mentor startup k? c?u, chuy�n t? v?n chi?n l??c ph�t tri?n startup Vi?t Nam.
 
-            ⚠️ BẮT BUỘC:
-            - Chỉ trả về JSON với đúng 5 trường: Team, Idea, Prototype, Plan, Relationships
-            - Mỗi gợi ý phải cụ thể, khả thi và có giá trị cao
-            - Gợi ý nên tập trung vào cách cải thiện từng khía cạnh
-            - Không thêm trường khác
-            - Nếu thông tin còn thiếu, hãy gợi ý những yếu tố cần bổ sung
+?? NHI?M V?:
+Ph�n t�ch startup v� ??a ra g?i � c? th?, kh? thi ??:
+  ? T?ng c? h?i nh?n funding
+  ? Gi?i quy?t bottleneck hi?n t?i
+  ? Accelerate growth
+  ? X�y d?ng sustainable business
 
-            Thông tin startup:
-            Team: ""{info.Team}""
-            Idea: ""{info.Idea}""
-            Prototype: ""{info.Prototype}""
-            Plan: ""{info.Plan}""
-            Relationships: ""{info.Relationships}""
+?? TH�NG TIN STARTUP:
+Team: " + info.Team + @"
+Idea: " + info.Idea + @"
+Prototype: " + info.Prototype + @"
+Plan: " + info.Plan + @"
+Relationships: " + info.Relationships + @"
 
-            Cấu trúc JSON trả về (gợi ý chi tiết):
-            {{
-                ""Team"": ""Gợi ý cải thiện đội ngũ (tuyển dụng kỹ năng nào, cơ cấu tối ưu, v.v.)"",
-                ""Idea"": ""Gợi ý phát triển ý tưởng (mở rộng thị trường, xác định USP, v.v.)"",
-                ""Prototype"": ""Gợi ý cải thiện sản phẩm (tính năng ưu tiên, tối ưu UX, v.v.)"",
-                ""Plan"": ""Gợi ý kế hoạch (milestone, timeline, ngân sách, v.v.)"",
-                ""Relationships"": ""Gợi ý tìm kiếm đối tác (loại đối tác, nơi tìm kiếm, v.v.)""
-            }}
-            ";
+?? G?I � THEO 5 L?NH V?C:
+
+Team ? G?i �:
+  � Tuy?n d?ng: k? n?ng, vai tr� n�o?
+  � C?u tr�c: ideally bao nhi�u ng??i?
+  � Network: t�m advisor/co-founder ? ?�u?
+
+Idea ? G?i �:
+  � M? r?ng market: target users n�o ti?p theo?
+  � X�c ??nh USP: ?i?m kh�c bi?t vs competitor?
+  � B2B/B2C: model n�o ph� h?p?
+
+Prototype ? G?i �:
+  � T�nh n?ng ?u ti�n: MVP c?n g�?
+  � Timeline: bao l�u ?? launch?
+  � Metrics: measure success th? n�o?
+
+Plan ? G?i �:
+  � Milestone c? th?: Q1, Q2, Q3...
+  � Revenue target: c� th? ??t bao nhi�u?
+  � Funding round: n�n raise bao nhi�u, khi n�o?
+
+Relationships ? G?i �:
+  � Partners: ng�nh c�ng nghi?p/platform n�o ph� h?p?
+  � Investors: lo?i investor n�o (Angel/VC/Corp)?
+  � Accelerators: program n�o c� l?i (Y Combinator, 500 Startups...)?
+
+?? QUY T?C:
+? Ch? tr? JSON, kh�ng markdown
+? G?i � ph?i: Specific, Actionable, Measurable
+? N?u input r?ng: output c?ng r?ng
+? Length: 150-300 k� t?/tr??ng
+? Ti?ng Vi?t, ng�n ng? mentor
+
+JSON OUTPUT:
+{
+    ""Team"": ""G?i � c? th? cho team...(ai, k? n?ng g�, t? ?�u?)"",
+    ""Idea"": ""G?i � ph�t tri?n idea...(market n�o, USP g�?)"",
+    ""Prototype"": ""G?i � c?i thi?n s?n ph?m...(features, timeline)"",
+    ""Plan"": ""G?i � k? ho?ch...(milestone, revenue, funding)"",
+    ""Relationships"": ""G?i � t�m partner...(lo?i partner, n?i t�m)""
+}
+";
 
             var requestBody = new
             {
@@ -375,7 +419,7 @@ namespace VietStart.API.Controllers
 
             var content = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
 
-            // Retry khi gặp 503
+            // Retry khi g?p 503
             int maxRetries = 3;
             int delayMs = 2000;
             HttpResponseMessage? response = null;
