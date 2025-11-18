@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System.Net;
 using System.Text;
@@ -21,6 +22,7 @@ namespace VietStart.API.Controllers
             _httpClient = new HttpClient();
         }
 
+        [Authorize(Roles = "Client")]
         [HttpPost("format")]
         public async Task<IActionResult> FormatInput([FromBody] string clientAnswer)
         {
@@ -123,6 +125,7 @@ namespace VietStart.API.Controllers
         }
 
         [HttpPost("point")]
+        [Authorize(Roles = "Client")]
         public async Task<IActionResult> Point([FromBody] StartupInfo info)
         {
             if (info == null)
