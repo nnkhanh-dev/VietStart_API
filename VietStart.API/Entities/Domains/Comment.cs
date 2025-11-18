@@ -18,6 +18,7 @@ namespace VietStart.API.Entities.Domains
         [ForeignKey(nameof(ParentCommentId))]
         public Comment ParentComment { get; set; }
         public ICollection<Comment> Replies { get; set; }
+        public ICollection<React> Reacts { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
         public DateTime? DeletedAt { get; set; }

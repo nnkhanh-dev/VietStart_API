@@ -60,7 +60,6 @@ builder.Services.Configure<IdentityOptions>(options =>
 
 var app = builder.Build();
 
-// ?? Thêm ?o?n g?i seed data
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;

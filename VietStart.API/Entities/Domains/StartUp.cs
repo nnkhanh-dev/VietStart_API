@@ -8,7 +8,11 @@ namespace VietStart.API.Entities.Domains
     {
         [Key]
         public int Id { get; set; }
-        public string Content { get; set; }
+        public string Team { get; set; }
+        public string Idea { get; set; }
+        public string Prototype { get; set; }
+        public string Traction { get; set; }
+        public string Relationship { get; set; }
         public Privacy Privacy { get; set; }
         public int Point { get; set; }
         public string UserId { get; set; }
@@ -27,6 +31,6 @@ namespace VietStart.API.Entities.Domains
         public ICollection<StartUpMedia> StartUpMedias { get; set; }
         public ICollection<Comment> Comments { get; set; }
         public ICollection<Share> Shares { get; set; }
-
+        public ICollection<React> Reacts { get; set; }
     }
 }

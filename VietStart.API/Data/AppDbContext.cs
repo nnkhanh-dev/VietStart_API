@@ -20,39 +20,81 @@ namespace VietStart.API.Data
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            base.OnModelCreating(modelBuilder);
 
-            // ======== SHARE (Fix cascade) ========
-            modelBuilder.Entity<Share>(entity =>
-            {
-                // Composite key
-                entity.HasKey(x => new { x.UserId, x.StartUpId });
+            // Configure Share composite key
+            modelBuilder.Entity<Share>()
+                .HasKey(s => new { s.UserId, s.StartUpId });
 
-                entity.HasOne(x => x.User)
-                      .WithMany(x => x.Shares)
-                      .HasForeignKey(x => x.UserId)
-                      .OnDelete(DeleteBehavior.Restrict);     // ⭐ Bắt buộc
+            // Configure AppUser relationships
+            modelBuilder.Entity<AppUser>()
+                .HasMany(u => u.StartUps)
+                .WithOne(s => s.AppUser)
+                .HasForeignKey(s => s.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
 
-                entity.HasOne(x => x.StartUp)
-                      .WithMany(x => x.Shares)
-                      .HasForeignKey(x => x.StartUpId)
-                      .OnDelete(DeleteBehavior.Restrict);     // ⭐ Bắt buộc
-            });
+            modelBuilder.Entity<AppUser>()
+                .HasMany(u => u.Comments)
+                .WithOne(c => c.User)
+                .HasForeignKey(c => c.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
 
-            // ======== COMMENT (bạn đã đúng) ========
+            modelBuilder.Entity<AppUser>()
+                .HasMany(u => u.Shares)
+                .WithOne(s => s.User)
+                .HasForeignKey(s => s.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Configure StartUp relationships
+            modelBuilder.Entity<StartUp>()
+                .HasMany(s => s.Comments)
+                .WithOne(c => c.StartUp)
+                .HasForeignKey(c => c.StartUpId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<StartUp>()
+                .HasMany(s => s.StartUpMedias)
+                .WithOne(m => m.StartUp)
+                .HasForeignKey(m => m.StartUpId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<StartUp>()
+                .HasMany(s => s.Shares)
+                .WithOne(sh => sh.StartUp)
+                .HasForeignKey(sh => sh.StartUpId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<StartUp>()
+                .HasOne(s => s.Category)
+                .WithMany(c => c.StartUps)
+                .HasForeignKey(s => s.CategoryId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Configure Comment self-referencing relationship
             modelBuilder.Entity<Comment>()
                 .HasOne(c => c.ParentComment)
                 .WithMany(c => c.Replies)
                 .HasForeignKey(c => c.ParentCommentId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            modelBuilder.Entity<Comment>()
-                .HasOne(c => c.User)
-                .WithMany(u => u.Comments)
-                .HasForeignKey(c => c.UserId)
-                .OnDelete(DeleteBehavior.NoAction);
+            // Configure React relationships
+            modelBuilder.Entity<React>()
+                .HasOne(r => r.User)
+                .WithMany()
+                .HasForeignKey(r => r.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
 
-            // Nếu cần handle StartUp – Comment hoặc StartUp – React, hãy đảm bảo không Cascade
+            modelBuilder.Entity<React>()
+                .HasOne(r => r.Comment)
+                .WithMany(c => c.Reacts)
+                .HasForeignKey(r => r.CommentId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<React>()
+                .HasOne(r => r.StartUp)
+                .WithMany(s => s.Reacts)
+                .HasForeignKey(r => r.StartUpId)
+                .OnDelete(DeleteBehavior.Restrict);
         }
-
     }
 }
