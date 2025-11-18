@@ -24,7 +24,6 @@ namespace VietStart.API.Repositories
             //Create claims
             var claims = new List<Claim>
             {
-                new Claim(ClaimTypes.NameIdentifier, user.Id),
                 new Claim(ClaimTypes.Email, user.Email),
                 new Claim("FullName", user.FullName),
                 new Claim("Location", user.Location ?? string.Empty),
