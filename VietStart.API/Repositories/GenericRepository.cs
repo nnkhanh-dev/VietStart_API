@@ -113,7 +113,7 @@ namespace VietStart.API.Repositories
             await _context.SaveChangesAsync();
         }
 
-        public async Task<(IEnumerable<T> Data, int Total)> GetPaginatedAsync(
+        public virtual async Task<(IEnumerable<T> Data, int Total)> GetPaginatedAsync(
             int page,
             int pageSize,
             Expression<Func<T, bool>> predicate = null,
