@@ -23,15 +23,16 @@ namespace VietStart.API.Controllers
             _environment = environment;
         }
 
-        [Authorize(Roles = "Client")]
         [HttpPost("format")]
+        [Authorize(Roles = "Client")]
         public async Task<IActionResult> FormatInput([FromBody] string clientAnswer)
         {
             if (string.IsNullOrWhiteSpace(clientAnswer))
                 return BadRequest("clientAnswer cannot be empty.");
 
             string apiKey = _configuration["Gemini:Key"];
-            var url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key={apiKey}";
+            var url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key={apiKey}";
+
 
             string prompt = @"
 Bạn là hệ thống chuẩn hóa thông tin Startup Việt Nam. Phân tích mô tả của người dùng và trích xuất thành JSON có đúng 5 trường:
@@ -134,7 +135,7 @@ INPUT: " + clientAnswer + @"
                 return BadRequest("Startup info cannot be null.");
 
             string apiKey = _configuration["Gemini:Key"];
-            var url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key={apiKey}";
+            var url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key={apiKey}";
 
             string prompt = $@"
 Bạn là chuyên gia đầu tư startup early-stage tại Việt Nam.
@@ -910,7 +911,7 @@ JSON OUTPUT:
                 return BadRequest("Startup info cannot be null.");
 
             string apiKey = _configuration["Gemini:Key"];
-            var url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key={apiKey}";
+            var url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key={apiKey}";
 
             string prompt = @"
 Bạn là cố vấn startup kỳ cựu, chuyên sửa & viết lại profile startup để phục vụ pitch nhà đầu tư.
@@ -1016,7 +1017,7 @@ JSON OUTPUT:
                 return BadRequest("Startup info cannot be null.");
 
             string apiKey = _configuration["Gemini:Key"];
-            var url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key={apiKey}";
+            var url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key={apiKey}";
 
             string prompt = @"
 Bạn là mentor startup kỳ cựu, chuyên tư vấn chiến lược phát triển startup Việt Nam.
