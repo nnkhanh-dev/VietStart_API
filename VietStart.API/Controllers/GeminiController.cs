@@ -33,6 +33,91 @@ namespace VietStart.API.Controllers
             string apiKey = _configuration["Gemini:Key"];
             var url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key={apiKey}";
 
+            // BƯỚC 1: Kiểm tra vi phạm pháp luật
+            string validationPrompt = @"
+🚨 NHIỆM VỤ KIỂM TRA VI PHẠM:
+Bạn là chuyên gia pháp lý startup Việt Nam. Phân tích input và kiểm tra xem startup có vi phạm:
+
+❌ VI PHẠM PHÁP LUẬT:
+• Kinh doanh cá độ, cờ bạc, casino online
+• Đa cấp, ponzi, lừa đảo tài chính
+• Tiền ảo, cryptocurrency không được cấp phép
+• Vũ khí, ma túy, chất cấm
+• Nội dung đồi trụy, khiêu dâm
+• Vi phạm bản quyền rõ ràng
+• Bán hàng cấm (thuốc lá điện tử, thuốc không phép)
+• Phá hoại an ninh quốc gia, phân biệt chủng tộc
+
+❌ VI PHẠM QUY CHUẨN:
+• Thiếu giấy phép bắt buộc (y tế, tài chính, giáo dục)
+• Tuyên bố y tế không có chứng cứ
+• Lừa dối khách hàng rõ ràng
+• Thông tin sai lệch nghiêm trọng
+
+⚙️ QUY TẮC:
+✓ Chỉ trả về JSON
+✓ Nếu VI PHẠM: isValid = false, message = lý do cụ thể
+✓ Nếu HỢP LỆ: isValid = true, message = ""
+
+INPUT: " + clientAnswer + @"
+
+JSON OUTPUT:
+{
+    ""isValid"": true/false,
+    ""message"": ""lý do vi phạm (nếu có)""
+}
+";
+
+            var validationRequestBody = new
+            {
+                contents = new[]
+                {
+                    new {
+                        parts = new[] { new { text = validationPrompt } }
+                    }
+                }
+            };
+
+            var validationContent = new StringContent(JsonSerializer.Serialize(validationRequestBody), Encoding.UTF8, "application/json");
+            var validationResponse = await _httpClient.PostAsync(url, validationContent);
+
+            if (!validationResponse.IsSuccessStatusCode)
+                return StatusCode((int)validationResponse.StatusCode, await validationResponse.Content.ReadAsStringAsync());
+
+            var validationJsonResponse = await validationResponse.Content.ReadAsStringAsync();
+            using (var validationDoc = JsonDocument.Parse(validationJsonResponse))
+            {
+                if (validationDoc.RootElement.TryGetProperty("candidates", out var validationCandidates))
+                {
+                    string validationResultText = validationCandidates[0]
+                        .GetProperty("content")
+                        .GetProperty("parts")[0]
+                        .GetProperty("text")
+                        .GetString() ?? "";
+
+                    string cleanedValidationJson = validationResultText.Replace("```json", "").Replace("```", "").Trim();
+                    
+                    try
+                    {
+                        var validationResult = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(cleanedValidationJson);
+                        if (validationResult != null && 
+                            validationResult.TryGetValue("isValid", out var isValidElement) && 
+                            !isValidElement.GetBoolean())
+                        {
+                            string violationMessage = validationResult.TryGetValue("message", out var msgElement) 
+                                ? msgElement.GetString() ?? "Startup vi phạm quy định" 
+                                : "Startup vi phạm quy định";
+                            return BadRequest(new { error = violationMessage });
+                        }
+                    }
+                    catch
+                    {
+                        // Nếu parse lỗi, coi như hợp lệ và tiếp tục
+                    }
+                }
+            }
+
+            // BƯỚC 2: Format thông tin startup
             string prompt = @"
 Bạn là hệ thống chuẩn hóa thông tin Startup Việt Nam. Phân tích mô tả của người dùng và trích xuất thành JSON có đúng 5 trường:
 
@@ -375,109 +460,54 @@ JSON OUTPUT:
             string apiKey = _configuration["Gemini:Key"];
             var url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key={apiKey}";
 
-            string prompt = @"
-Bạn là mentor startup kỳ cựu, chuyên tư vấn chiến lược phát triển startup Việt Nam.
+            var filePath = Path.Combine(_environment.ContentRootPath, "Data", "DataSuggest.json");
 
-⚠️ NHIỆM VỤ:
-Phân tích startup và đưa ra gợi ý cụ thể, khả thi để:
-  • Tăng cơ hội nhận funding
-  • Giải quyết bottleneck hiện tại
-  • Accelerate growth
-  • Xây dựng sustainable business
-  • **ĐẶC BIỆT: Nếu trường nào THIẾU hoặc KHÔNG ĐỦ thông tin → Đưa ra gợi ý CỤ THỂ để bổ sung**
+            if (!System.IO.File.Exists(filePath))
+            {
+                return BadRequest("File DataSuggest.json không tồn tại: " + filePath);
+            }
+
+            var example = System.IO.File.ReadAllText(filePath);
+
+            string prompt = $@"
+Bạn là mentor startup, phân tích và đưa gợi ý cải thiện cho từng lĩnh vực.
 
 📊 THÔNG TIN STARTUP:
-Team: " + (string.IsNullOrWhiteSpace(info.Team) ? "[THIẾU THÔNG TIN]" : info.Team) + @"
-Idea: " + (string.IsNullOrWhiteSpace(info.Idea) ? "[THIẾU THÔNG TIN]" : info.Idea) + @"
-Prototype: " + (string.IsNullOrWhiteSpace(info.Prototype) ? "[THIẾU THÔNG TIN]" : info.Prototype) + @"
-Plan: " + (string.IsNullOrWhiteSpace(info.Plan) ? "[THIẾU THÔNG TIN]" : info.Plan) + @"
-Relationships: " + (string.IsNullOrWhiteSpace(info.Relationships) ? "[THIẾU THÔNG TIN]" : info.Relationships) + @"
+Team: {(string.IsNullOrWhiteSpace(info.Team) ? "[THIẾU]" : info.Team)}
+Idea: {(string.IsNullOrWhiteSpace(info.Idea) ? "[THIẾU]" : info.Idea)}
+Prototype: {(string.IsNullOrWhiteSpace(info.Prototype) ? "[THIẾU]" : info.Prototype)}
+Plan: {(string.IsNullOrWhiteSpace(info.Plan) ? "[THIẾU]" : info.Plan)}
+Relationships: {(string.IsNullOrWhiteSpace(info.Relationships) ? "[THIẾU]" : info.Relationships)}
 
-📝 GỢI Ý THEO 5 LĨNH VỰC:
+📌 VÍ DỤ:
+{example}
 
-**QUY TẮC QUAN TRỌNG:**
-- Nếu trường có thông tin đầy đủ → Đưa ra gợi ý NÂNG CAO
-- Nếu trường THIẾU hoặc MƠ HỒ → Đưa ra gợi ý BỔ SUNG CỤ THỂ với ví dụ minh họa
+⚙️ YÊU CẦU:
+• Phân tích liên kết giữa các trường
+• Đưa gợi ý cụ thể, khả thi
+• Nếu thiếu thông tin → gợi ý bổ sung
+• Nếu đã có → gợi ý cải thiện
 
-1️⃣ Team 🧑‍💼 Gợi ý:
-  
-  **Nếu THIẾU thông tin team:**
-  • Liệt kê CỤ THỂ các vai trò cần thiết (VD: CEO với kinh nghiệm 5+ năm trong fintech, CTO biết Flutter/React Native, CMO có background marketing digital)
-  • Gợi ý số lượng thành viên lý tưởng cho giai đoạn hiện tại
-  • Đề xuất kênh tìm kiếm (TopDev, LinkedIn, sự kiện startup VN)
-  
-  **Nếu ĐÃ CÓ thông tin team:**
-  • Đánh giá điểm mạnh/yếu
-  • Gợi ý tuyển dụng vai trò còn thiếu
-  • Đề xuất advisor phù hợp (ngành nào, tìm ở đâu)
+GỢI Ý CHO 5 LĨNH VỰC:
 
-2️⃣ Idea 💡 Gợi ý:
-  
-  **Nếu THIẾU thông tin idea:**
-  • Gợi ý CỤ THỂ cách mô tả idea (Problem-Solution-Market Size)
-  • Đưa ra ví dụ về USP (Unique Selling Point)
-  • Gợi ý nghiên cứu competitors và phân tích điểm khác biệt
-  
-  **Nếu ĐÃ CÓ thông tin idea:**
-  • Đề xuất mở rộng target market
-  • Xác định rõ USP so với đối thủ
-  • Gợi ý pivot hoặc optimize business model (B2B/B2C/B2B2C)
+1️⃣ Team: Phân tích kỹ năng hiện có, đề xuất vai trò cần bổ sung phù hợp với Idea/Prototype
 
-3️⃣ Prototype 🛠️ Gợi ý:
-  
-  **Nếu THIẾU thông tin prototype:**
-  • Gợi ý CỤ THỂ các tính năng core cho MVP (liệt kê 3-5 features ưu tiên)
-  • Đề xuất công nghệ phù hợp (tech stack: Frontend, Backend, Database)
-  • Gợi ý timeline phát triển (VD: 2-3 tháng cho MVP đầu tiên)
-  • Đề xuất cách demo sản phẩm (video, live demo, mockup)
-  
-  **Nếu ĐÃ CÓ prototype:**
-  • Đề xuất tính năng tiếp theo cần phát triển
-  • Gợi ý metrics đo lường (DAU, retention rate, NPS)
-  • Tối ưu UX/UI dựa trên user feedback
+2️⃣ Idea: Đánh giá khả thi, đề xuất cải tiến dựa trên Team/Market
 
-4️⃣ Plan 📅 Gợi ý:
-  
-  **Nếu THIẾU thông tin plan:**
-  • Gợi ý CỤ THỂ roadmap theo quý (Q1-Q4) với milestone cụ thể
-  • Đề xuất KPIs đo lường (VD: 1000 users trong 3 tháng, $10K MRR sau 6 tháng)
-  • Gợi ý thời điểm và số tiền fundraising (VD: Pre-seed $50K-100K sau 6 tháng)
-  • Đề xuất go-to-market strategy
-  
-  **Nếu ĐÃ CÓ plan:**
-  • Tối ưu timeline và milestone
-  • Đề xuất revenue targets cụ thể
-  • Gợi ý chiến lược fundraising (loại investor, số tiền, thời điểm)
+3️⃣ Prototype: Gợi ý features và tech stack phù hợp với Team/Plan
 
-5️⃣ Relationships 🤝 Gợi ý:
-  
-  **Nếu THIẾU thông tin relationships:**
-  • Liệt kê CỤ THỂ các loại đối tác cần tìm (VD: payment gateway như Momo/VNPay, logistics như GHN/GHTK)
-  • Gợi ý tên các investors/funds phù hợp (VD: 500 Startups Vietnam, Touchstone Partners, Do Ventures)
-  • Đề xuất accelerator programs (VD: Topica Founder Institute, VinTech City, VIISA)
-  • Gợi ý cách networking (sự kiện nào, group nào)
-  
-  **Nếu ĐÃ CÓ relationships:**
-  • Đánh giá chất lượng partnerships hiện tại
-  • Đề xuất mở rộng ecosystem
-  • Gợi ý strategic partnerships mới
+4️⃣ Plan: Đề xuất roadmap và milestones dựa trên Prototype/Resources
 
-⚙️ QUY TẮC OUTPUT:
-• Chỉ trả về JSON, không markdown, không giải thích
-• Gợi ý phải: Specific, Actionable, Measurable, CÓ VÍ DỤ CỤ THỂ
-• Nếu trường thiếu info → Gợi ý BỔ SUNG chi tiết với ví dụ
-• Nếu trường đã có info → Gợi ý NÂNG CAO
-• Length: 200-400 ký tự/trường (dài hơn nếu cần thiết để đưa ví dụ)
-• Tiếng Việt, ngôn ngữ mentor, thân thiện nhưng chuyên nghiệp
+5️⃣ Relationships: Gợi ý partners/investors cụ thể phù hợp với domain
 
-JSON OUTPUT:
-{
-    ""Team"": ""Gợi ý cụ thể cho team...(nếu thiếu: vai trò gì, kỹ năng gì, tìm ở đâu + ví dụ; nếu đã có: đánh giá và gợi ý nâng cao)"",
-    ""Idea"": ""Gợi ý phát triển idea...(nếu thiếu: cách mô tả, ví dụ USP; nếu đã có: market mới, pivot strategy)"",
-    ""Prototype"": ""Gợi ý cải thiện sản phẩm...(nếu thiếu: features MVP, tech stack, timeline + ví dụ; nếu đã có: features tiếp theo, metrics)"",
-    ""Plan"": ""Gợi ý kế hoạch...(nếu thiếu: roadmap Q1-Q4, KPIs cụ thể, fundraising timeline; nếu đã có: tối ưu milestone, revenue target)"",
-    ""Relationships"": ""Gợi ý tìm partner...(nếu thiếu: loại partner cụ thể + tên, investors/funds cụ thể, accelerators + ví dụ; nếu đã có: mở rộng ecosystem)""
-}
+JSON OUTPUT (chỉ trả JSON, không markdown):
+{{
+    ""Team"": ""gợi ý team (200-300 ký tự)"",
+    ""Idea"": ""gợi ý idea (200-300 ký tự)"",
+    ""Prototype"": ""gợi ý prototype (200-300 ký tự)"",
+    ""Plan"": ""gợi ý plan (200-300 ký tự)"",
+    ""Relationships"": ""gợi ý relationships (200-300 ký tự)""
+}}
 ";
 
             var requestBody = new
@@ -529,9 +559,9 @@ JSON OUTPUT:
             {
                 suggestions = JsonSerializer.Deserialize<StartupInfo>(cleanedJson) ?? new StartupInfo();
             }
-            catch
+            catch (Exception ex)
             {
-                suggestions = new StartupInfo { Team = cleanedJson };
+                return BadRequest(new { error = "Failed to parse Gemini response", details = ex.Message, raw = cleanedJson });
             }
 
             return Ok(new
