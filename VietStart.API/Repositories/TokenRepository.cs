@@ -27,6 +27,9 @@ namespace VietStart.API.Repositories
                 new Claim(ClaimTypes.NameIdentifier, user.Id),
                 new Claim(ClaimTypes.Email, user.Email),
                 new Claim("FullName", user.FullName),
+                new Claim("Location", user.Location ?? string.Empty),
+                new Claim("Bio", user.Bio ?? string.Empty),
+                new Claim("Avatar", user.Avatar ?? string.Empty),
                 new Claim(ClaimTypes.Role, role)
             };
 
