@@ -14,11 +14,13 @@ namespace VietStart.API.Controllers
     {
         private readonly IConfiguration _configuration;
         private readonly HttpClient _httpClient;
+        private readonly IWebHostEnvironment _environment;
 
-        public GeminiController(IConfiguration configuration)
+        public GeminiController(IConfiguration configuration, HttpClient httpClient, IWebHostEnvironment environment)
         {
             _configuration = configuration;
-            _httpClient = new HttpClient();
+            _httpClient = httpClient;
+            _environment = environment;
         }
 
         [Authorize(Roles = "Client")]
@@ -134,7 +136,16 @@ INPUT: " + clientAnswer + @"
             string apiKey = _configuration["Gemini:Key"];
             var url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key={apiKey}";
 
-            string prompt = @"
+            var filePath = Path.Combine(_env.ContentRootPath, "Data", "Data.json");
+
+            if (!System.IO.File.Exists(filePath))
+            {
+                return BadRequest("File Data.json không tồn tại: " + filePath);
+            }
+
+            var example = System.IO.File.ReadAllText(filePath);
+
+            string prompt = string prompt = $@"
 Bạn là chuyên gia đầu tư startup early-stage tại Việt Nam.
 Chấm điểm startup dựa trên tiêu chí sau (tổng 100 điểm):
 
@@ -163,28 +174,30 @@ Chấm điểm startup dựa trên tiêu chí sau (tổng 100 điểm):
    • Hợp tác B2B/Ecosystem: 8 điểm
    • Nhà đầu tư/Advisor: 7 điểm
 
+📌 Ví dụ chấm điểm:
+{example}
+
 📋 THÔNG TIN STARTUP:
-Team: " + info.Team + @"
-Idea: " + info.Idea + @"
-Prototype: " + info.Prototype + @"
-Plan: " + info.Plan + @"
-Relationships: " + info.Relationships + @"
+Team: {info.Team}
+Idea: {info.Idea}
+Prototype: {info.Prototype}
+Plan: {info.Plan}
+Relationships: {info.Relationships}
 
 ⚙️ QUY TẮC:
 ✓ Chỉ trả JSON, không giải thích
-✓ Điểm phải là số nguyên (0-20, 0-30...)
+✓ Điểm phải là số nguyên
 ✓ TotalScore = sum(Team+Idea+Prototype+Plan+Relationships)
-✓ Nếu thiếu info: điểm 0 cho mục đó
 
 JSON OUTPUT:
-{
+{{
     ""Team"": 0-20,
     ""Idea"": 0-20,
     ""Prototype"": 0-30,
     ""Plan"": 0-15,
     ""Relationships"": 0-15,
     ""TotalScore"": 0-100
-}
+}}
 ";
 
             var requestBody = new
