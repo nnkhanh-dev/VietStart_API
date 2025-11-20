@@ -15,6 +15,11 @@ namespace VietStart.API.Entities.Domains
         public string Relationship { get; set; }
         public Privacy Privacy { get; set; }
         public int Point { get; set; }
+        public int IdeaPoint { get; set; }
+        public int TeamPoint { get; set; }
+        public int PrototypePoint { get; set; }
+        public int PlanPoint { get; set; }
+        public int RelationshipPoint { get; set; }
         public string UserId { get; set; }
         [ForeignKey(nameof(UserId))]
         public AppUser AppUser { get; set; }
