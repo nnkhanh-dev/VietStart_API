@@ -111,7 +111,10 @@ namespace VietStart.API.Controllers
                 return BadRequest(ModelState);
 
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            
+
+            if(userId == null)
+                return Unauthorized();
+
             var category = await _unitOfWork.Categories.FirstOrDefaultAsync(c => c.Id == createDto.CategoryId && c.DeletedAt == null);
             if (category == null)
                 return BadRequest(new { Message = "Danh mục không tồn tại" });
