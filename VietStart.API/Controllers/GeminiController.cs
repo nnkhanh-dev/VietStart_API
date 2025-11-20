@@ -136,7 +136,7 @@ INPUT: " + clientAnswer + @"
             string apiKey = _configuration["Gemini:Key"];
             var url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key={apiKey}";
 
-            var filePath = Path.Combine(_env.ContentRootPath, "Data", "Data.json");
+            var filePath = Path.Combine(_environment.ContentRootPath, "Data", "Data.json");
 
             if (!System.IO.File.Exists(filePath))
             {
@@ -145,7 +145,7 @@ INPUT: " + clientAnswer + @"
 
             var example = System.IO.File.ReadAllText(filePath);
 
-            string prompt = string prompt = $@"
+            string prompt = $@"
 Bạn là chuyên gia đầu tư startup early-stage tại Việt Nam.
 Chấm điểm startup dựa trên tiêu chí sau (tổng 100 điểm):
 
