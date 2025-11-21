@@ -49,6 +49,22 @@ namespace VietStart.API.Mappings
 
             // AppUser mappings
             CreateMap<AppUser, AppUserDto>();
+
+            // TeamStartUp mappings
+            CreateMap<TeamStartUp, TeamStartUpDto>()
+                .ForMember(dest => dest.StartUpIdea, opt => opt.MapFrom(src => src.StartUp.Idea))
+                .ForMember(dest => dest.UserFullName, opt => opt.MapFrom(src => src.User.FullName))
+                .ForMember(dest => dest.UserAvatar, opt => opt.MapFrom(src => src.User.Avatar))
+                .ForMember(dest => dest.PositionName, opt => opt.MapFrom(src => src.Position.Name));
+
+            CreateMap<TeamStartUp, TeamStartUpDetailDto>();
+            CreateMap<CreateTeamStartUpDto, TeamStartUp>();
+            CreateMap<UpdateTeamStartUpDto, TeamStartUp>();
+
+            // Position mappings
+            CreateMap<Position, PositionDto>();
+            CreateMap<CreatePositionDto, Position>();
+            CreateMap<UpdatePositionDto, Position>();
         }
     }
 }

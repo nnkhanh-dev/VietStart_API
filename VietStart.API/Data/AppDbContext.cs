@@ -17,6 +17,8 @@ namespace VietStart.API.Data
         public DbSet<React> Reacts { get; set; }
         public DbSet<Share> Shares { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
+        public DbSet<TeamStartUp> TeamStartUps { get; set; }
+        public DbSet<Position> Positions { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -94,6 +96,25 @@ namespace VietStart.API.Data
                 .HasOne(r => r.StartUp)
                 .WithMany(s => s.Reacts)
                 .HasForeignKey(r => r.StartUpId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Configure TeamStartUp relationships
+            modelBuilder.Entity<TeamStartUp>()
+                .HasOne(t => t.User)
+                .WithMany()
+                .HasForeignKey(t => t.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<TeamStartUp>()
+                .HasOne(t => t.StartUp)
+                .WithMany()
+                .HasForeignKey(t => t.StartUpId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<TeamStartUp>()
+                .HasOne(t => t.Position)
+                .WithMany()
+                .HasForeignKey(t => t.PositionId)
                 .OnDelete(DeleteBehavior.Restrict);
         }
     }

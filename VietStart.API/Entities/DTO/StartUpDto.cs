@@ -23,6 +23,11 @@ namespace VietStart.API.Entities.DTO
         public string CategoryName { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
+        
+        // Count properties
+        public int? CommentCount { get; set; }
+        public int? ShareCount { get; set; }
+        public int? ReactCount { get; set; }
     }
 
     public class StartUpDetailDto

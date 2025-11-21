@@ -12,6 +12,8 @@ namespace VietStart.API.Repositories
         private IShareRepository _shareRepository;
         private IStartUpMediaRepository _startUpMediaRepository;
         private IAppUserRepository _appUserRepository;
+        private ITeamStartUpRepository _teamStartUpRepository;
+        private IPositionRepository _positionRepository;
 
         public UnitOfWork(AppDbContext context)
         {
@@ -25,6 +27,8 @@ namespace VietStart.API.Repositories
         public IShareRepository Shares => _shareRepository ??= new ShareRepository(_context);
         public IStartUpMediaRepository StartUpMedias => _startUpMediaRepository ??= new StartUpMediaRepository(_context);
         public IAppUserRepository Users => _appUserRepository ??= new AppUserRepository(_context);
+        public ITeamStartUpRepository TeamStartUps => _teamStartUpRepository ??= new TeamStartUpRepository(_context);
+        public IPositionRepository Positions => _positionRepository ??= new PositionRepository(_context);
 
         public async Task<int> SaveChangesAsync()
         {

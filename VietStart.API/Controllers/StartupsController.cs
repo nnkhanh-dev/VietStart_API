@@ -52,7 +52,10 @@ namespace VietStart.API.Controllers
                 CategoryId = s.CategoryId,
                 CategoryName = s.Category.Name,
                 CreatedAt = s.CreatedAt,
-                UpdatedAt = s.UpdatedAt
+                UpdatedAt = s.UpdatedAt,
+                CommentCount = s.Comments?.Count ?? 0,
+                ShareCount = s.Shares?.Count ?? 0,
+                ReactCount = s.Reacts?.Count ?? 0
             }).ToList();
 
             return Ok(new { Data = startupDtos, Total = total });

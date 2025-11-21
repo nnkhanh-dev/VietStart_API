@@ -9,6 +9,8 @@ namespace VietStart.API.Repositories
         IShareRepository Shares { get; }
         IStartUpMediaRepository StartUpMedias { get; }
         IAppUserRepository Users { get; }
+        ITeamStartUpRepository TeamStartUps { get; }
+        IPositionRepository Positions { get; }
         
         Task<int> SaveChangesAsync();
     }

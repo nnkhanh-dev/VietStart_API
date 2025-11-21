@@ -19,7 +19,10 @@ namespace VietStart.API.Repositories
         {
             IQueryable<StartUp> query = _dbSet
                 .Include(s => s.AppUser)
-                .Include(s => s.Category);
+                .Include(s => s.Category)
+                .Include(s => s.Comments.Where(c => c.DeletedAt == null))
+                .Include(s => s.Shares.Where(sh => sh.DeletedAt == null))
+                .Include(s => s.Reacts);
 
             if (predicate != null)
                 query = query.Where(predicate);
