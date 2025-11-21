@@ -38,7 +38,7 @@ namespace VietStart.API.Entities.DTO
         public int PositionId { get; set; }
         public string? Experience { get; set; }
         public string? Motivation { get; set; }
-        public string Status { get; set; } = "?ang ch?"; // Default status
+        public string Status { get; set; } = "Pending"; // Default status
     }
 
     public class UpdateTeamStartUpDto
